@@ -1,0 +1,20 @@
+# ── Credenciales SIGMA — NUNCA versionar ──────────────────────────────
+sigma/.env
+
+# ── Datos pesados (snapshot local, ~235 MB) ───────────────────────────
+DATA/datos_meteo/
+DATA/logs/
+DATA/cache_dias_efectivos/
+DATA/cache_control_calidad/
+
+# ── Catálogo de estaciones (derivado de sgo.db; REVISAR antes de publicar:
+#    contiene metadata como entidad_responsable / propiedad_terreno) ────
+data_ref/estaciones.db
+
+# ── Entorno / cache ───────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.superpowers/brainstorm/

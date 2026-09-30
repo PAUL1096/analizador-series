@@ -1,0 +1,166 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Umbrales de detección de firmas AF-* por variable.
+#
+# IMPORTANTE: las duraciones se expresan en MINUTOS reales, no en "pasos".
+# core.deteccion_afectaciones convierte a pasos usando la cadencia inferida
+# EMPÍRICAMENTE de la propia serie (moda de los deltas entre lecturas válidas
+# consecutivas) — no se asume aquí si una variable es 10-min/horaria/diaria,
+# porque esa definición depende del catálogo SIGMA y varía por estación
+# (ver docs/2026-07-13-rediseno-fase1-design.md §10.1, R5: no adivinar).
+# Así un mismo umbral de duración aplica igual a una variable horaria que a
+# una de 10 minutos.
+#
+# cst:  racha de valores ~iguales (Δ ≤ tol) sostenida
+#   duracion_min / duracion_alta_min → severidad Media / Alta
+# gap:  fracción de huecos (NaN) dentro del rango de datos, sobre la grilla
+#       de cadencia esperada de la propia variable
+#   umbral_frac / umbral_alta_frac
+# miss: ausencia total o racha larga de NaN
+#   umbral_pct (fracción NaN sobre el total) + racha_min_horas
+# out:  fuera de rango físico (lo da series_disponibles.yaml) o salto |Δ|
+#   excesivo entre lecturas consecutivas
+#   delta_max (None = no se evalúa salto, solo rango físico)
+# nois: dispersión anómala vía z-score del rolling-std
+#   ventana_min (minutos) + z_umbral / z_umbral_alta
+# bias: change-point de nivel/tendencia (ruptures.Pelt)
+#   penalizacion, min_size_min (tamaño mínimo de segmento), salto_alta
+#   (delta de nivel entre segmentos que se considera severidad Alta; None si
+#   no hay evidencia suficiente todavía para fijarlo)
+# ─────────────────────────────────────────────────────────────────────────────
+
+n_humedad:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 30 }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: 15 }
+
+n_humedad_inst:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 30 }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: 15 }
+
+n_maxrh:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: null }
+
+n_minrh:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: null }
+
+n_airtemp:
+  cst:  { duracion_min: 120, duracion_alta_min: 480, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 8 }
+  nois: { ventana_min: 120, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: 5 }
+
+n_airtemp_inst:
+  cst:  { duracion_min: 120, duracion_alta_min: 480, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 8 }
+  nois: { ventana_min: 120, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: 5 }
+
+n_presatm:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 5 }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: 3 }
+
+n_presatm_inst:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 5 }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: 3 }
+
+n_velviento:
+  cst:  { duracion_min: 60, duracion_alta_min: 360, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 20 }
+  nois: { ventana_min: 60, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 120, salto_alta: null }
+
+n_dirviento:
+  cst:  { duracion_min: 60, duracion_alta_min: 360, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 60, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 120, salto_alta: null }
+
+n_racha:
+  cst:  { duracion_min: 60, duracion_alta_min: 360, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 60, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 120, salto_alta: null }
+
+n_lluvia:
+  cst:  { duracion_min: 1440, duracion_alta_min: 4320, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 1440, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 720, salto_alta: null }
+
+n_rain_10m:
+  cst:  { duracion_min: 1440, duracion_alta_min: 4320, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 1440, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 720, salto_alta: null }
+
+n_dayrain:
+  cst:  { duracion_min: 2880, duracion_alta_min: 7200, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 48 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 2880, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 1440, salto_alta: null }
+
+n_int_lluvia:
+  cst:  { duracion_min: 1440, duracion_alta_min: 4320, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 1440, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 720, salto_alta: null }
+
+n_nivelagua:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: 2 }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 360, salto_alta: 0.5 }
+
+# Catch-all para variables no listadas
+_default:
+  cst:  { duracion_min: 180, duracion_alta_min: 720, tol: 0.0 }
+  gap:  { umbral_frac: 0.10, umbral_alta_frac: 0.40 }
+  miss: { umbral_pct: 0.80, racha_min_horas: 24 }
+  out:  { delta_max: null }
+  nois: { ventana_min: 180, z_umbral: 3.0, z_umbral_alta: 6.0 }
+  bias: { penalizacion: 10, min_size_min: 180, salto_alta: null }

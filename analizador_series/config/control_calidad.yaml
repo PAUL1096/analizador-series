@@ -1,0 +1,127 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Umbrales del Control de Calidad (CC) LOCAL del Analizador (docs/SPEC-control-calidad.md).
+#
+# Esto NO es el CC oficial de la SGD (Subdirección de Gestión de Datos) — es una
+# capa de análisis propia de SGR, que nunca sale de esta máquina. Los números salen
+# de manuales técnicos SENAMHI públicos, citados exactos abajo, pero la capa en sí
+# es un análisis interno, no un producto institucional.
+#
+# banderines: BUENO (pasa todo) / DUDOSO (no pasa una regla blanda) / MALO (fuera de
+# límite duro). Combinación por lectura: MALO > DUDOSO > BUENO (peor gana).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTOMÁTICAS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# limite_duro: MÁS ESTRICTO entre MT-DRD-001 v02 (SGR, "Instalación y Operación de
+#   Estaciones", Tablas 02/03/05/06/07 §6.5 — rango de fábrica del sensor) y
+#   MT-DRD-002 v02 (SGD, "Control de Calidad — automáticas", §6.3.1.1) cuando ambos
+#   lo tabulan. Fuera de ese rango -> MALO.
+# paso: salto máximo permitido entre lecturas consecutivas, a distintas ventanas de
+#   tiempo (MT-DRD-002 §6.3.2.1, subreglas 31-40). Fuera -> DUDOSO. null = sin regla
+#   de paso documentada para esa variable.
+# persistencia: si aplica (MT-DRD-002 §6.3.2.2, subreglas 41-46 — excluye
+#   precipitación y nivel de agua explícitamente).
+
+n_airtemp:
+  limite_duro: { min: -40, max: 50, fuente: "MT-DRD-001 Tabla 02" }
+  paso: { max_1h: 4, max_2h: 7, max_3h: 9, max_6h: 15, max_12h: 25, fuente: "MT-DRD-002 subregla 31a-e" }
+  persistencia: true
+
+n_airtemp_inst:
+  limite_duro: { min: -40, max: 50, fuente: "MT-DRD-001 Tabla 02" }
+  paso: { max_1h: 4, max_2h: 7, max_3h: 9, max_6h: 15, max_12h: 25, fuente: "MT-DRD-002 subregla 31a-e" }
+  persistencia: true
+
+n_humedad:
+  limite_duro: { min: 1, max: 100, fuente: "MT-DRD-001 Tabla 02" }
+  paso: { max_delta: 45, fuente: "MT-DRD-002 subregla 33" }
+  persistencia: true
+
+n_humedad_inst:
+  limite_duro: { min: 1, max: 100, fuente: "MT-DRD-001 Tabla 02" }
+  paso: { max_delta: 45, fuente: "MT-DRD-002 subregla 33" }
+  persistencia: true
+
+n_presatm:
+  limite_duro: { min: 550, max: 1100, fuente: "MT-DRD-001 Tabla 03 (EMA)" }
+  paso: { max_1h: 3, max_2h: 6, max_3h: 9, max_6h: 18, max_12h: 36, fuente: "MT-DRD-002 subregla 37a-e" }
+  persistencia: true
+
+n_presatm_inst:
+  limite_duro: { min: 550, max: 1100, fuente: "MT-DRD-001 Tabla 03 (EMA)" }
+  paso: { max_1h: 3, max_2h: 6, max_3h: 9, max_6h: 18, max_12h: 36, fuente: "MT-DRD-002 subregla 37a-e" }
+  persistencia: true
+
+n_velviento:
+  limite_duro: { min: 0, max: 50, fuente: "MT-DRD-001 Tabla 03" }
+  paso: { max_delta: 10.0, estricto: true, fuente: "MT-DRD-002 subregla 38 (< estricto, no <=)" }
+  persistencia: true
+
+n_dirviento:
+  limite_duro: { min: 1, max: 360, fuente: "MT-DRD-002 (SGR no lo tabula en MT-DRD-001)" }
+  paso: { max_delta_circular: 150, fuente: "MT-DRD-002 subregla 39" }
+  persistencia: true
+
+# Radiación solar: excepción a "usar siempre el más estricto entre los dos
+# manuales" (ver nota de cabecera). Verificado con datos reales de 101004
+# GUEPPI (2026-09-29): el mínimo 0 de MT-DRD-001 marcaba como MALO 1631/1635
+# lecturas — 1024 de ellas ruido nocturno normal del sensor entre -3 y 0 W/m²,
+# exactamente lo que el mínimo -1 de MT-DRD-002 está diseñado para tolerar.
+# Se usa el mínimo de MT-DRD-002 (más permisivo, pero el correcto para esta
+# variable) y el máximo de MT-DRD-001 (más estricto, sin evidencia de que cause
+# falsos positivos).
+n_radsolar:
+  limite_duro: { min: -1, max: 1300, fuente: "MT-DRD-002 subregla 8 (mín.) + MT-DRD-001 Tabla 03 (máx.)" }
+  paso: { min_delta: 0, max_delta: 555, fuente: "MT-DRD-002 subregla 40" }
+  persistencia: true
+
+n_radsolar_inst:
+  limite_duro: { min: -1, max: 1300, fuente: "MT-DRD-002 subregla 8 (mín.) + MT-DRD-001 Tabla 03 (máx.)" }
+  paso: { min_delta: 0, max_delta: 555, fuente: "MT-DRD-002 subregla 40" }
+  persistencia: true
+
+n_nivelagua:
+  limite_duro: { min: 0, max: 35, fuente: "MT-DRD-002 §6.3.1.1.d (SGR no lo tabula igual en MT-DRD-001)" }
+  paso: null   # MT-DRD-002 p.16: "para el Nivel de agua horario no se presentan pruebas de paso"
+  persistencia: false   # excluida explícitamente en MT-DRD-002 §6.3.2.2
+
+n_lluvia:
+  # 401 (MT-DRD-002) es más estricto que el 500 de MT-DRD-001 -- se usa el más
+  # estricto de los dos, mismo criterio que el resto de variables.
+  limite_duro: { min: 0, max: 401, fuente: "MT-DRD-002 subregla 3a" }
+  paso: null   # MT-DRD-002 p.16: "para la Precipitación acumulada horaria no se presentan pruebas de paso"
+  persistencia: false   # excluida explícitamente en MT-DRD-002 §6.3.2.2
+
+n_int_lluvia:
+  # min=0, NO 0.02: el 0.02 de MT-DRD-001 es el umbral de detección del sensor
+  # DURANTE lluvia activa, no un piso físico -- la inmensa mayoría de lecturas
+  # son "no está lloviendo" (0), usar 0.02 como mínimo las marcaría MALO casi
+  # siempre (mismo tipo de error que se corrigió en n_radsolar esta sesión).
+  limite_duro: { min: 0, max: 500, fuente: "MT-DRD-001 Tabla 02 (Intensidad Precipitación líquida)" }
+  paso: null
+  persistencia: false
+
+n_dayrain:
+  limite_duro: { min: 0, max: 508, fuente: "MT-DRD-002 subregla 3b (suma de 24h precedentes)" }
+  paso: null
+  persistencia: false
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CONVENCIONALES — nomenclatura TM/PA/PT (MT-DRD-003 §6.3), no n_airtemp/n_presatm.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# limite_duro_temperatura: MT-DRD-003 subregla 2.G (-30/45°C -> MALO fuera de rango).
+# banda_dudosa: subreglas 2.H/2.I — dentro del límite duro pero en banda extrema -> DUDOSO.
+n_tm_temperatura:
+  limite_duro: { min: -30, max: 45, fuente: "MT-DRD-003 subregla 2.G" }
+  banda_dudosa_baja: { min: -30, max: -28, fuente: "MT-DRD-003 subregla 2.H" }
+  banda_dudosa_alta: { min: 43, max: 45, fuente: "MT-DRD-003 subregla 2.I" }
+
+# variacion_diaria: MT-DRD-003 subregla 2.N — necesita region_natural + altitud de
+# data_ref/estaciones.db (ver data_ref/actualizar_geodatos.py). Fuera del máximo -> DUDOSO.
+variacion_diaria_temperatura:
+  costa:            { altitud_max: 600,  max_delta: 5.0,  fuente: "MT-DRD-003 subregla 2.N (Costa)" }
+  sierra_selva_baja: { altitud_max: 3800, max_delta: 10.0, fuente: "MT-DRD-003 subregla 2.N (Sierra/Selva <=3800m)" }
+  sierra_alta:       { altitud_min: 3800, max_delta: 15.0, fuente: "MT-DRD-003 subregla 2.N (Sierra >3800m)" }

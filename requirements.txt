@@ -1,0 +1,17 @@
+# Analizador de Series — dependencias (env dedicado: conda `analizador_series`, Python 3.12)
+# Versiones fijadas al 2026-07-14. AF-REP (statsmodels/stumpy) se difiere; ver docs/ spec §5.
+dash==4.4.0
+dash-bootstrap-components==2.0.4
+dash-ag-grid==35.2.0
+plotly==6.9.0
+pandas==3.0.3
+numpy==2.5.1
+scipy==1.18.0
+ruptures==1.1.10
+pytest==9.1.1
+PyYAML==6.0.3
+selenium==4.46.0
+requests==2.34.2
+python-dotenv==1.2.2
+matplotlib==3.11.0
+openpyxl==3.1.5
