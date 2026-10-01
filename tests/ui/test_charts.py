@@ -56,3 +56,86 @@ class TestOverlayMultivarModoMarkers:
         )
         colores = [t.marker.color for t in fig.data[-2:]]
         assert colores == ["#111111", "#222222"]
+
+    def test_symbol_por_defecto_es_circle(self):
+        df = _df_base()
+        extra_serie = pd.Series([1.0, 2.0], index=df.index[:2])
+        fig = charts.overlay_multivar(
+            df, "var1", None, {"display_name": "Var 1", "unidad": "u"}, None,
+            extra_series=[{"nombre": "A", "serie": extra_serie, "eje": "y1", "modo": "markers"}],
+        )
+        assert fig.data[-1].marker.symbol == "circle"
+
+    def test_symbol_explicito_diamond(self):
+        df = _df_base()
+        extra_serie = pd.Series([1.0, 2.0], index=df.index[:2])
+        fig = charts.overlay_multivar(
+            df, "var1", None, {"display_name": "Var 1", "unidad": "u"}, None,
+            extra_series=[{"nombre": "A", "serie": extra_serie, "eje": "y1",
+                            "modo": "markers", "symbol": "diamond"}],
+        )
+        assert fig.data[-1].marker.symbol == "diamond"
+
+
+class TestPanelDiferenciasVecindad:
+    def test_una_traza_de_barras_por_entrada_con_su_color(self):
+        idx = pd.date_range("2026-01-01", periods=3, freq="D")
+        serie = pd.Series([0.5, -0.3, 1.1], index=idx)
+        fig = charts.panel_diferencias_vecindad(
+            [{"nombre": "07h", "serie": serie, "color": "#d62728"}]
+        )
+        assert fig.data[0].type == "bar"
+        assert fig.data[0].marker.color == "#d62728"
+        assert list(fig.data[0].y) == [0.5, -0.3, 1.1]
+
+    def test_varias_entradas_dan_varias_trazas(self):
+        idx = pd.date_range("2026-01-01", periods=2, freq="D")
+        s1 = pd.Series([1.0, 2.0], index=idx)
+        s2 = pd.Series([-1.0, -2.0], index=idx)
+        fig = charts.panel_diferencias_vecindad([
+            {"nombre": "07h", "serie": s1, "color": "#111111"},
+            {"nombre": "19h", "serie": s2, "color": "#222222"},
+        ])
+        assert len(fig.data) == 2
+
+    def test_lista_vacia_no_lanza_error(self):
+        fig = charts.panel_diferencias_vecindad([])
+        assert fig is not None
+
+
+class TestSeriePuntosDiarios:
+    """Gráfico genérico para comparar N series diarias (máx/mín temperatura,
+    acumulado precipitación) sin una curva continua de base — a diferencia de
+    overlay_multivar, acá ninguna serie es "la principal"."""
+
+    def test_una_traza_por_entrada_con_su_color_y_simbolo(self):
+        idx = pd.date_range("2026-01-01", periods=3, freq="D")
+        serie = pd.Series([30.0, 31.0, 29.0], index=idx)
+        fig = charts.serie_puntos_diarios(
+            [{"nombre": "Máxima (auto)", "serie": serie, "color": "#d62728", "symbol": "diamond"}]
+        )
+        assert fig.data[0].mode == "markers"
+        assert fig.data[0].marker.color == "#d62728"
+        assert fig.data[0].marker.symbol == "diamond"
+        assert list(fig.data[0].y) == [30.0, 31.0, 29.0]
+
+    def test_modo_lines_markers_conecta_la_serie(self):
+        idx = pd.date_range("2026-01-01", periods=2, freq="D")
+        serie = pd.Series([1.0, 2.0], index=idx)
+        fig = charts.serie_puntos_diarios(
+            [{"nombre": "A", "serie": serie, "color": "#111", "modo": "lines+markers"}]
+        )
+        assert fig.data[0].mode == "lines+markers"
+
+    def test_varias_entradas_dan_varias_trazas(self):
+        idx = pd.date_range("2026-01-01", periods=2, freq="D")
+        s1 = pd.Series([1.0, 2.0], index=idx)
+        s2 = pd.Series([3.0, 4.0], index=idx)
+        fig = charts.serie_puntos_diarios([
+            {"nombre": "A", "serie": s1, "color": "#111"},
+            {"nombre": "B", "serie": s2, "color": "#222"},
+        ])
+        assert len(fig.data) == 2
+
+    def test_lista_vacia_no_lanza_error(self):
+        assert charts.serie_puntos_diarios([]) is not None

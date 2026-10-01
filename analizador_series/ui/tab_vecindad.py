@@ -21,6 +21,33 @@ VARIABLE_OPTIONS = [
     {"label": "Precipitación", "value": "precipitacion"},
 ]
 
+# D = día calendario; t = instante horario. "real" = dato que SIGMA ya calculó
+# y reporta (no lo calcula el Analizador); "calculado" = lo arma el Analizador
+# solo cuando falta el real, siempre rotulado así también en la leyenda del
+# gráfico. Ver core.vecindad y docs/SPEC-vecindad.md para el detalle completo.
+# Versión corta (vive al lado del selector de periodo) — cambia según la
+# variable física elegida, ver ui.callbacks.actualizar_disclaimer_vecindad.
+DISCLAIMER_TEMPERATURA_MD = """
+ℹ️ **Máx/mín diaria:** real (`n_maxat`/`n_minat`) o, si falta, el extremo de
+los valores ya agregados por hora (`n_maxath`/`n_minath`) — nunca `n_airtemp`:
+`Máx_calc(D) = máx{n_maxath(t): t∈D}`
+
+**Horas sinópticas:** valor real en su hora exacta, sin cálculo.
+
+**Diferencia** = Convencional − Automática.
+"""
+
+DISCLAIMER_PRECIPITACION_MD = """
+ℹ️ **Acumulado diario:** real (`n_dayrain`) o, si falta:
+`Acum_calc(D) = Σn_lluvia, t∈(07h D−1, 07h D]`
+(`n_pt101` se muestra +1 día vs. su fecha cruda de SIGMA)
+
+**Ventaneo 07h/19h:** siempre calculado:
+`Noct(D)=Σn_lluvia(19h D−1→07h D)` · `Día(D)=Σn_lluvia(07h D→19h D)`
+
+**Diferencia** = Convencional − Automática.
+"""
+
 
 def opciones_pares(pares: list[dict]) -> list[dict]:
     """[{"codigo_auto","codigo_conv","distancia_m"}] -> opciones de dcc.Dropdown,
@@ -65,8 +92,12 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                             display_format="YYYY-MM-DD",
                             clearable=True,
                         ),
+                        html.Div(
+                            dcc.Markdown(DISCLAIMER_TEMPERATURA_MD, className="small text-muted mb-0"),
+                            id="div-vecindad-disclaimer", className="mt-2 vecindad-disclaimer",
+                        ),
                     ], md=4),
-                ], className="g-2 align-items-end"),
+                ], className="g-2 align-items-start"),
 
                 dbc.Row([
                     dbc.Col([
@@ -90,10 +121,34 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
             className="shadow-sm mb-3",
         ),
 
+        # 4 gráficos genéricos — el callback decide qué va en cada uno según
+        # la variable física elegida (Ronda 2, ver docs/SPEC-vecindad.md):
+        #   Temperatura:   [1] horaria + horas sinópticas · [2] máx/mín diaria
+        #                  [diff-1] dif. horas sinópticas · [diff-2] dif. diaria
+        #   Precipitación: [1] acumulado diario           · [2] ventaneo 07h/19h
+        #                  [diff-1] dif. acumulado diario · [diff-2] dif. ventaneo
         dbc.Card(
-            dbc.CardBody([
-                dcc.Loading(dcc.Graph(id="g-vecindad", config={"displaylogo": False})),
-            ]),
+            dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-1", config={"displaylogo": False}))]),
             className="shadow-sm mb-3",
         ),
+        dbc.Card(
+            dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-2", config={"displaylogo": False}))]),
+            className="shadow-sm mb-3",
+        ),
+        dbc.Row([
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-diff-1", config={"displaylogo": False}))]),
+                    className="shadow-sm mb-3",
+                ),
+                md=6,
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-diff-2", config={"displaylogo": False}))]),
+                    className="shadow-sm mb-3",
+                ),
+                md=6,
+            ),
+        ]),
     ])

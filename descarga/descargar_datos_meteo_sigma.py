@@ -321,6 +321,22 @@ def _consultar_chunk(
 _PATRON_VAR_OBSERVADA = re.compile(r"^n_(nb|vi)\d+$")
 
 
+def _fecha_hora(row: dict) -> tuple[str, str]:
+    """
+    SIGMA nombra el campo de fecha distinto según la familia de datos:
+    automáticas e hidrológicas -> "d_fecha_reg" (a veces con hora y timezone
+    completos, tipo ISO) + "v_hora_reg"; meteorológicas convencionales diarias
+    (temperatura n_tm*/precipitación n_pt*) -> "FECHA" (mayúsculas, sin ningún
+    campo de hora — son diarias). Sin este fallback, todas las filas de esta
+    segunda familia quedaban con fecha vacía y el deduplicado de abajo las
+    colapsaba a una sola fila (bug real reproducido con 106077/100043 al
+    probar la pestaña vecindad — ver tests/descarga/).
+    """
+    fecha = (row.get("d_fecha_reg") or row.get("FECHA") or "")[:10]
+    hora = (row.get("v_hora_reg") or "")[:5] or "00:00"
+    return fecha, hora
+
+
 def _construir_csv(datos: list, excluir_observadas: bool = False) -> str:
     """
     Construye CSV a partir de la respuesta JSON del API.
@@ -337,11 +353,11 @@ def _construir_csv(datos: list, excluir_observadas: bool = False) -> str:
 
     # Ordenar y deduplicar por (fecha, hora) — necesario al concatenar chunks
     try:
-        datos = sorted(datos, key=lambda r: (r.get("d_fecha_reg", ""), r.get("v_hora_reg", "") or ""))
+        datos = sorted(datos, key=_fecha_hora)
         seen = set()
         datos_dedup = []
         for r in datos:
-            key = (r.get("d_fecha_reg", ""), (r.get("v_hora_reg") or "")[:5])
+            key = _fecha_hora(r)
             if key not in seen:
                 seen.add(key)
                 datos_dedup.append(r)
@@ -360,9 +376,8 @@ def _construir_csv(datos: list, excluir_observadas: bool = False) -> str:
 
     lines = [",".join(headers)]
     for row in datos:
-        fecha = row.get("d_fecha_reg", "")
-        hora  = (row.get("v_hora_reg") or "")[:5]   # HH:MM
-        vals  = [fecha, hora]
+        fecha, hora = _fecha_hora(row)
+        vals = [fecha, hora]
         for v in vars_n:
             val  = row.get(v)
             flag = row.get(f"flag_{v}") or ""

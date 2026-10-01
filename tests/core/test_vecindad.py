@@ -167,20 +167,73 @@ class TestColumnasConvencionalesDisponibles:
 
 
 class TestArmarExtraSeriesConvencional:
-    def test_una_serie_por_columna_disponible_en_modo_markers(self):
-        idx = pd.date_range("2026-01-01", periods=3, freq="D")
-        df_conv = pd.DataFrame({"n_tm102": [10.0, 11.0, 12.0], "n_pt101": [0.0, 1.0, 0.0]}, index=idx)
+    """
+    Cada columna convencional tiene, según el catálogo oficial de SIGMA
+    (confirmado en Análisis -> DataMonitor, ver tasks/todo.md), un "tipo":
+    "diaria" (máx/mín/total del día, sin hora puntual) o "puntual" (lectura a
+    una hora sinóptica exacta: 07h/13h/19h). Las puntuales se desplazan a su
+    hora real para caer sobre el tramo correcto de la curva continua de la
+    automática; las diarias se dejan al mediodía con un símbolo distinto
+    (diamante) para no insinuar que son de una hora puntual.
+    """
+
+    def test_columna_puntual_se_desplaza_a_su_hora_real(self):
+        idx = pd.date_range("2026-01-01", periods=2, freq="D")  # medianoche
+        df_conv = pd.DataFrame({"n_tm104": [10.0, 11.0]}, index=idx)  # 07h
         extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
         assert len(extra) == 1
-        assert extra[0]["nombre"] == "n_tm102"
         assert extra[0]["modo"] == "markers"
-        assert list(extra[0]["serie"].values) == [10.0, 11.0, 12.0]
+        assert extra[0]["symbol"] == "circle"
+        assert list(extra[0]["serie"].index) == [
+            pd.Timestamp("2026-01-01 07:00:00"), pd.Timestamp("2026-01-02 07:00:00"),
+        ]
+        assert list(extra[0]["serie"].values) == [10.0, 11.0]
+
+    def test_columna_diaria_se_deja_al_mediodia_con_simbolo_diamante(self):
+        idx = pd.date_range("2026-01-01", periods=1, freq="D")
+        df_conv = pd.DataFrame({"n_tm102": [18.0]}, index=idx)  # máxima diaria
+        extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+        assert extra[0]["symbol"] == "diamond"
+        assert list(extra[0]["serie"].index) == [pd.Timestamp("2026-01-01 12:00:00")]
+
+    def test_nombre_usa_la_etiqueta_legible_no_el_codigo_crudo(self):
+        idx = pd.date_range("2026-01-01", periods=1, freq="D")
+        df_conv = pd.DataFrame({"n_tm104": [10.0], "n_tm102": [18.0]}, index=idx)
+        extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+        nombres = {e["nombre"] for e in extra}
+        assert nombres == {"07h", "Máxima diaria"}
+
+    def test_conserva_el_codigo_crudo_de_columna_para_mapear_color(self):
+        """Necesario para que el panel de diferencias use el mismo color que
+        su punto correspondiente en el gráfico principal (ver callbacks.py)."""
+        idx = pd.date_range("2026-01-01", periods=1, freq="D")
+        df_conv = pd.DataFrame({"n_tm104": [10.0]}, index=idx)
+        extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+        assert extra[0]["columna"] == "n_tm104"
+
+    def test_conserva_el_tipo_para_que_el_callback_separe_por_grafico(self):
+        idx = pd.date_range("2026-01-01", periods=1, freq="D")
+        df_conv = pd.DataFrame({"n_tm104": [10.0], "n_tm102": [18.0]}, index=idx)
+        extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+        tipos = {e["columna"]: e["tipo"] for e in extra}
+        assert tipos == {"n_tm104": "puntual", "n_tm102": "diaria"}
 
     def test_columnas_faltantes_se_omiten_sin_error(self):
         idx = pd.date_range("2026-01-01", periods=2, freq="D")
         df_conv = pd.DataFrame({"n_humedad": [50.0, 55.0]}, index=idx)
         extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
         assert extra == []
+
+    def test_columna_presente_pero_toda_vacia_se_omite(self):
+        """Regresión: una columna que EXISTE pero no tiene ningún valor real
+        (todo NaN en el periodo) no debe generar una traza fantasma en la
+        leyenda sin puntos visibles — ver tasks/todo.md, feedback real sobre
+        leyendas confusas."""
+        idx = pd.date_range("2026-01-01", periods=2, freq="D")
+        df_conv = pd.DataFrame({"n_tm102": [None, None], "n_tm103": [12.0, 13.0]}, index=idx)
+        extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+        columnas = {e["columna"] for e in extra}
+        assert columnas == {"n_tm103"}
 
     def test_df_vacio_no_lanza_error(self):
         df_conv = pd.DataFrame()
@@ -194,3 +247,217 @@ class TestArmarExtraSeriesConvencional:
         extra = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
         colores = [e["color"] for e in extra]
         assert len(set(colores)) == len(colores)
+
+
+class TestCalcularDiferenciasPuntuales:
+    """
+    Diferencia (convencional - automática) SOLO para columnas "puntual" — para
+    las "diaria" (máx/mín/total) calcular una diferencia exigiría que vecindad
+    compute su propio agregado diario de la automática, y esa rigurosidad es
+    tarea de PLIA (límite explícito de docs/SPEC-vecindad.md, confirmado con
+    el usuario antes de agregar este panel).
+    """
+
+    def test_diferencia_en_el_instante_exacto_de_la_hora_puntual(self):
+        idx_auto = pd.date_range("2026-01-01", periods=48, freq="h")
+        serie_auto = pd.Series(20.0, index=idx_auto)  # constante, fácil de verificar
+        serie_auto.loc["2026-01-01 07:00:00"] = 22.0
+        idx_conv = pd.date_range("2026-01-01", periods=2, freq="D")
+        df_conv = pd.DataFrame({"n_tm104": [20.5, 21.0]}, index=idx_conv)  # 07h
+
+        diffs = vecindad.calcular_diferencias_puntuales(serie_auto, df_conv, "temperatura")
+        assert list(diffs.keys()) == ["n_tm104"]
+        assert diffs["n_tm104"].loc["2026-01-01 07:00:00"] == pytest.approx(20.5 - 22.0)
+
+    def test_columnas_diarias_no_generan_diferencia(self):
+        idx_auto = pd.date_range("2026-01-01", periods=24, freq="h")
+        serie_auto = pd.Series(20.0, index=idx_auto)
+        idx_conv = pd.date_range("2026-01-01", periods=1, freq="D")
+        df_conv = pd.DataFrame({"n_tm102": [25.0], "n_tm104": [20.2]}, index=idx_conv)
+
+        diffs = vecindad.calcular_diferencias_puntuales(serie_auto, df_conv, "temperatura")
+        assert "n_tm102" not in diffs
+        assert "n_tm104" in diffs
+
+    def test_sin_dato_automatica_en_ese_instante_se_omite_sin_error(self):
+        idx_auto = pd.date_range("2026-01-01", periods=5, freq="h")  # solo hasta las 04h
+        serie_auto = pd.Series(20.0, index=idx_auto)
+        idx_conv = pd.date_range("2026-01-01", periods=1, freq="D")
+        df_conv = pd.DataFrame({"n_tm106": [18.0]}, index=idx_conv)  # 19h, sin dato auto
+
+        diffs = vecindad.calcular_diferencias_puntuales(serie_auto, df_conv, "temperatura")
+        assert diffs["n_tm106"].empty
+
+    def test_df_conv_vacio_da_diccionario_vacio(self):
+        serie_auto = pd.Series([20.0], index=pd.date_range("2026-01-01", periods=1, freq="h"))
+        assert vecindad.calcular_diferencias_puntuales(serie_auto, pd.DataFrame(), "temperatura") == {}
+
+
+class TestCalcularExtremosDiariosAutomatica:
+    """
+    Máxima/mínima diaria de la automática, en 3 niveles exactos (instrucción
+    original del usuario, ver tasks/todo.md Ronda 2 — corregido tras un error
+    real: la primera implementación calculaba desde n_airtemp, que el usuario
+    NUNCA pidió, y además subestima picos intra-hora):
+
+      1. n_maxat/n_minat REAL (diario, reportado por SIGMA) si existe.
+      2. Si no, "el máximo/mínimo de los máximos/mínimos agregados"
+         (n_maxath/n_minath, el pico/valle YA agregado por hora — verificado
+         con datos reales en 104114: max(n_maxath) del día captura picos que
+         max(n_airtemp) se pierde), marcado "calculado": True.
+      3. Si tampoco existe eso, None — nunca se calcula desde n_airtemp.
+    """
+
+    def test_usa_n_maxat_n_minat_reales_si_existen(self):
+        idx = pd.date_range("2026-01-01 07:00", periods=2, freq="D")
+        df_auto = pd.DataFrame({"n_maxat": [30.0, 31.0], "n_minat": [18.0, 17.5]}, index=idx)
+        res = vecindad.calcular_extremos_diarios_automatica(df_auto)
+        assert res["maxima"]["calculado"] is False
+        assert res["minima"]["calculado"] is False
+        assert list(res["maxima"]["serie"].values) == [30.0, 31.0]
+
+    def test_normaliza_al_mediodia_igual_que_la_convencional(self):
+        idx = pd.date_range("2026-01-01 07:00", periods=1, freq="D")
+        df_auto = pd.DataFrame({"n_maxat": [30.0], "n_minat": [18.0]}, index=idx)
+        res = vecindad.calcular_extremos_diarios_automatica(df_auto)
+        assert res["maxima"]["serie"].index[0] == pd.Timestamp("2026-01-01 12:00")
+
+    def test_respaldo_usa_maximo_de_n_maxath_no_n_airtemp(self):
+        idx = pd.date_range("2026-01-01 00:00", periods=48, freq="h")
+        n_maxath = [20.0 + (i % 24) for i in range(48)]  # pico horario, sube de 20 a 43
+        n_airtemp = [v - 2.0 for v in n_maxath]  # lectura puntual, siempre 2° por debajo del pico
+        df_auto = pd.DataFrame({"n_maxath": n_maxath, "n_airtemp": n_airtemp}, index=idx)
+        res = vecindad.calcular_extremos_diarios_automatica(df_auto)
+        assert res["maxima"]["calculado"] is True
+        # 43.0 (pico real de n_maxath), NO 41.0 (que daría max de n_airtemp)
+        assert list(res["maxima"]["serie"].values) == [43.0, 43.0]
+
+    def test_sin_n_maxat_ni_n_maxath_da_none_aunque_haya_n_airtemp(self):
+        """Regresión: n_airtemp NUNCA debe usarse como respaldo — no fue lo
+        que pidió el usuario, y subestima picos intra-hora (verificado con
+        datos reales: 16.6°C de max(n_airtemp) vs. 18.8°C real de max(n_maxath)
+        el mismo día, en 104114)."""
+        idx = pd.date_range("2026-01-01 00:00", periods=24, freq="h")
+        df_auto = pd.DataFrame({"n_airtemp": [20.0 + i for i in range(24)]}, index=idx)
+        res = vecindad.calcular_extremos_diarios_automatica(df_auto)
+        assert res["maxima"] is None
+        assert res["minima"] is None
+
+    def test_sin_ninguna_fuente_da_none(self):
+        df_auto = pd.DataFrame({"n_humedad": [50.0]}, index=pd.date_range("2026-01-01", periods=1, freq="D"))
+        res = vecindad.calcular_extremos_diarios_automatica(df_auto)
+        assert res["maxima"] is None
+        assert res["minima"] is None
+
+
+class TestCalcularDiferenciasDiariasTemperatura:
+    def test_diferencia_convencional_menos_automatica_real(self):
+        idx = pd.date_range("2026-01-01 07:00", periods=2, freq="D")
+        df_auto = pd.DataFrame({"n_maxat": [30.0, 31.0], "n_minat": [18.0, 17.0]}, index=idx)
+        df_conv = pd.DataFrame({"n_tm102": [30.5, 30.0], "n_tm103": [18.2, 16.5]},
+                                index=pd.date_range("2026-01-01", periods=2, freq="D"))
+        diffs = vecindad.calcular_diferencias_diarias_temperatura(df_auto, df_conv)
+        assert diffs["n_tm102"].iloc[0] == pytest.approx(0.5)
+        assert diffs["n_tm103"].iloc[1] == pytest.approx(-0.5)
+
+    def test_sin_extremos_automatica_no_genera_esa_columna(self):
+        df_auto = pd.DataFrame({"n_humedad": [1.0]}, index=pd.date_range("2026-01-01", periods=1, freq="D"))
+        df_conv = pd.DataFrame({"n_tm102": [30.0]}, index=pd.date_range("2026-01-01", periods=1, freq="D"))
+        diffs = vecindad.calcular_diferencias_diarias_temperatura(df_auto, df_conv)
+        assert diffs == {}
+
+
+class TestCalcularAcumuladoDiarioAutomatica:
+    """
+    Acumulado diario REAL de la automática (n_dayrain), o respaldo sumando
+    n_lluvia en la ventana 07h(D-1)->07h(D) — mismo "día meteorológico" que
+    usa SIGMA para n_dayrain, verificado con datos reales (ver tasks/todo.md
+    Ronda 2: 1.00 calculado vs. 1.1 reportado en 4728B11C, 2025-02-13).
+    """
+
+    def test_usa_n_dayrain_real_si_existe(self):
+        idx = pd.date_range("2026-01-01 07:00", periods=2, freq="D")
+        df_auto = pd.DataFrame({"n_dayrain": [0.5, 1.2]}, index=idx)
+        res = vecindad.calcular_acumulado_diario_automatica(df_auto)
+        assert res["calculado"] is False
+        assert list(res["serie"].values) == [0.5, 1.2]
+        # Etiquetado con el día que CIERRA (07:00 de ese mismo día), igual que SIGMA
+        assert res["serie"].index[0] == pd.Timestamp("2026-01-01 07:00")
+
+    def test_respaldo_suma_ventana_07_07_si_falta_n_dayrain(self):
+        # Lecturas horarias de 0.1 cada una, desde 2026-01-01 08:00 hasta
+        # 2026-01-02 07:00 (24 lecturas) -> ventana que cierra el día 02.
+        idx = pd.date_range("2026-01-01 08:00", periods=24, freq="h")
+        df_auto = pd.DataFrame({"n_lluvia": [0.1] * 24}, index=idx)
+        res = vecindad.calcular_acumulado_diario_automatica(df_auto)
+        assert res["calculado"] is True
+        dia_cierre = pd.Timestamp("2026-01-02 07:00")
+        assert dia_cierre in res["serie"].index
+        assert res["serie"].loc[dia_cierre] == pytest.approx(2.4)
+
+    def test_sin_ninguna_fuente_da_none(self):
+        df_auto = pd.DataFrame({"n_humedad": [1.0]}, index=pd.date_range("2026-01-01", periods=1, freq="D"))
+        assert vecindad.calcular_acumulado_diario_automatica(df_auto) is None
+
+
+class TestCalcularDiferenciasPrecipitacionDiaria:
+    def test_alinea_pt101_un_dia_adelante_antes_de_restar(self):
+        # n_pt101 fechado "2026-01-01" representa el período que CIERRA el
+        # 2026-01-02 (ver EQUIVALENCIA_VARIABLES, desfase_dias_cierre) — debe
+        # compararse contra n_dayrain fechado 2026-01-02, no 2026-01-01.
+        df_conv = pd.DataFrame({"n_pt101": [5.0]}, index=pd.date_range("2026-01-01", periods=1, freq="D"))
+        df_auto = pd.DataFrame({"n_dayrain": [5.5]}, index=pd.date_range("2026-01-02 07:00", periods=1, freq="D"))
+        diff = vecindad.calcular_diferencias_precipitacion_diaria(df_auto, df_conv)
+        assert diff is not None
+        assert diff.iloc[0] == pytest.approx(5.0 - 5.5)
+
+    def test_sin_dato_automatica_da_none(self):
+        df_conv = pd.DataFrame({"n_pt101": [5.0]}, index=pd.date_range("2026-01-01", periods=1, freq="D"))
+        df_auto = pd.DataFrame({"n_humedad": [1.0]}, index=pd.date_range("2026-01-02", periods=1, freq="D"))
+        assert vecindad.calcular_diferencias_precipitacion_diaria(df_auto, df_conv) is None
+
+
+class TestCalcularVentaneoAutomatica:
+    """
+    Suma de n_lluvia en las ventanas nocturna (19:01->07:00) y diurna
+    (07:01->19:00), para comparar contra n_pt102/n_pt103. Cálculo propio de
+    vecindad (no la lógica rigurosa de PLIA) — autorizado explícitamente por
+    el usuario tras confirmar la física real del proceso de observación
+    (ver tasks/todo.md, Ronda 2).
+    """
+
+    def test_ventana_diurna_suma_solo_07_a_19(self):
+        idx = pd.date_range("2026-01-01 00:00", periods=24, freq="h")
+        valores = [1.0] * 24  # una unidad por hora, todo el día
+        df_auto = pd.DataFrame({"n_lluvia": valores}, index=idx)
+        res = vecindad.calcular_ventaneo_automatica(df_auto)
+        # 07:01-19:00 -> horas en punto 08,09,...,19 => 12 lecturas de 1.0
+        assert res["diurna"].loc[pd.Timestamp("2026-01-01 19:00")] == pytest.approx(12.0)
+
+    def test_ventana_nocturna_cruza_medianoche_y_cierra_en_el_dia_siguiente(self):
+        idx = pd.date_range("2026-01-01 00:00", periods=48, freq="h")
+        valores = [1.0] * 48
+        df_auto = pd.DataFrame({"n_lluvia": valores}, index=idx)
+        res = vecindad.calcular_ventaneo_automatica(df_auto)
+        # 19:01(01) -> 07:00(02): horas en punto 20,21,22,23(01) + 00..07(02) = 12 lecturas
+        assert res["nocturna"].loc[pd.Timestamp("2026-01-02 07:00")] == pytest.approx(12.0)
+
+    def test_sin_n_lluvia_da_ventanas_vacias(self):
+        df_auto = pd.DataFrame({"n_humedad": [1.0]}, index=pd.date_range("2026-01-01", periods=1, freq="h"))
+        res = vecindad.calcular_ventaneo_automatica(df_auto)
+        assert res["diurna"].empty and res["nocturna"].empty
+
+
+class TestCalcularDiferenciasPrecipitacionVentaneo:
+    def test_diferencia_por_ventana(self):
+        idx_auto = pd.date_range("2026-01-01 00:00", periods=48, freq="h")
+        df_auto = pd.DataFrame({"n_lluvia": [0.5] * 48}, index=idx_auto)
+        df_conv = pd.DataFrame(
+            {"n_pt102": [7.0], "n_pt103": [5.0]},
+            index=pd.date_range("2026-01-02", periods=1, freq="D"),
+        )
+        diffs = vecindad.calcular_diferencias_precipitacion_ventaneo(df_auto, df_conv)
+        # nocturna que cierra 2026-01-02 07:00 = 12 * 0.5 = 6.0 -> pt102(7.0) - 6.0 = 1.0
+        assert diffs["n_pt102"].iloc[0] == pytest.approx(1.0)
+        # diurna que cierra 2026-01-02 19:00 = 12 * 0.5 = 6.0 -> pt103(5.0) - 6.0 = -1.0
+        assert diffs["n_pt103"].iloc[0] == pytest.approx(-1.0)

@@ -899,6 +899,16 @@ def actualizar_comparar(preset_id, estacion, var1, var2, datos_crudos):
 # del par elegido, con su propio periodo (dt-periodo-vecindad).
 # ══════════════════════════════════════════════════════════════════════════════
 
+@callback(
+    Output("div-vecindad-disclaimer", "children"),
+    Input("rb-vecindad-variable", "value"),
+)
+def actualizar_disclaimer_vecindad(variable_fisica):
+    md = (tab_vecindad.DISCLAIMER_PRECIPITACION_MD if variable_fisica == "precipitacion"
+          else tab_vecindad.DISCLAIMER_TEMPERATURA_MD)
+    return dcc.Markdown(md, className="small text-muted mb-0")
+
+
 def _dividir_par_vecindad(par_value: str | None) -> tuple[str | None, str | None]:
     if not par_value or "|" not in par_value:
         return None, None
@@ -930,8 +940,160 @@ def actualizar_periodo_vecindad(par_value):
     return fmin, fmax, inicio_default, fmax
 
 
+_COLOR_EXTREMO_MAXIMA = "#1f77b4"
+_COLOR_EXTREMO_MINIMA = "#ff7f0e"
+_COLOR_VENTANA_NOCTURNA = "#1f77b4"
+_COLOR_VENTANA_DIURNA = "#ff7f0e"
+_NOTA_CALCULADO = " (calculado por el Analizador — la automática no reporta oficialmente este valor)"
+
+
+def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff):
+    mensajes = []
+    metadata = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["convencional"]
+    var_auto = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica"]
+    extra_todas = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+    colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
+
+    # Gráfico 1: horaria continua + horas sinópticas (07h/13h/19h)
+    if var_auto not in df_auto.columns:
+        fig1 = vacio
+        mensajes.append(f"{cod_auto} no tiene {var_auto} descargada en este periodo.")
+    else:
+        extra_puntual = [e for e in extra_todas if e["tipo"] == "puntual"]
+        info_auto = series_derivadas.info_variable(var_auto)
+        fig1 = charts.overlay_multivar(
+            df_auto, var_auto, None, info_auto, {}, extra_series=extra_puntual,
+            titulo=f"{cod_auto} ↔ {cod_conv} · Horaria",
+        )
+        if df_conv.empty:
+            mensajes.append(f"{cod_conv} no tiene datos descargados en este periodo.")
+        elif not extra_puntual:
+            mensajes.append(f"{cod_conv} no tiene horas sinópticas de temperatura disponibles.")
+
+    # Gráfico 2: máxima/mínima diaria — real de la automática (n_maxat/n_minat,
+    # respaldo n_maxath/n_minath) y de la convencional (n_tm102/n_tm103). Si
+    # falta de cualquiera de los dos lados, se menciona explícitamente (no se
+    # omite en silencio).
+    extremos = vecindad.calcular_extremos_diarios_automatica(df_auto)
+    puntos2 = [e for e in extra_todas if e["tipo"] == "diaria"]
+    for col, meta in metadata.items():
+        if meta["tipo"] == "diaria" and not (col in df_conv.columns and df_conv[col].notna().any()):
+            mensajes.append(f"{cod_conv} no tiene {meta['etiqueta'].lower()} disponible.")
+    for clave, etiqueta, color in (
+        ("maxima", "Máxima (auto)", _COLOR_EXTREMO_MAXIMA),
+        ("minima", "Mínima (auto)", _COLOR_EXTREMO_MINIMA),
+    ):
+        fuente = extremos.get(clave)
+        if fuente is None:
+            col_real = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_diarios"][clave]
+            col_horario = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_horarios_agregados"][clave]
+            mensajes.append(f"{cod_auto} no tiene {etiqueta.split(' ')[0].lower()} diaria disponible "
+                             f"(ni {col_real} ni {col_horario}).")
+            continue
+        nombre = etiqueta + (_NOTA_CALCULADO if fuente["calculado"] else "")
+        puntos2.append({"nombre": nombre, "serie": fuente["serie"], "color": color, "symbol": "diamond"})
+        if fuente["calculado"]:
+            mensajes.append(f"Nota: {nombre}.")
+    fig2 = charts.serie_puntos_diarios(
+        puntos2, titulo=f"{cod_auto} ↔ {cod_conv} · Máx/mín diaria", yaxis_title="Temperatura (°C)",
+    )
+
+    # Diferencias (convencional − automática)
+    serie_auto_cont = df_auto[var_auto] if var_auto in df_auto.columns else pd.Series(dtype=float)
+    dif_puntual = vecindad.calcular_diferencias_puntuales(serie_auto_cont, df_conv, "temperatura")
+    lista_diff1 = [
+        {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
+        for col, s in dif_puntual.items() if not s.empty
+    ]
+    fig_diff1 = charts.panel_diferencias_vecindad(lista_diff1, titulo="Dif. horas sinópticas (conv.−auto.)")
+
+    dif_diaria = vecindad.calcular_diferencias_diarias_temperatura(df_auto, df_conv)
+    lista_diff2 = [
+        {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
+        for col, s in dif_diaria.items() if not s.empty
+    ]
+    fig_diff2 = charts.panel_diferencias_vecindad(lista_diff2, titulo="Dif. máx/mín diaria (conv.−auto.)")
+
+    return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
+
+
+def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff):
+    mensajes = []
+    metadata = vecindad.EQUIVALENCIA_VARIABLES["precipitacion"]["convencional"]
+    extra_todas = vecindad.armar_extra_series_convencional(df_conv, "precipitacion")
+    colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
+
+    # Gráfico 1: acumulado diario — n_pt101 realineado +1 día (ver
+    # core.vecindad, desfase_dias_cierre) junto al acumulado real/calculado
+    # de la automática (n_dayrain).
+    puntos1 = []
+    for e in extra_todas:
+        if e["columna"] != "n_pt101":
+            continue
+        p = dict(e)
+        s = p["serie"].copy()
+        s.index = s.index.normalize() + pd.Timedelta(days=1, hours=12)
+        p["serie"] = s
+        puntos1.append(p)
+    if "n_pt101" not in df_conv.columns or not df_conv["n_pt101"].notna().any():
+        mensajes.append(f"{cod_conv} no tiene {metadata['n_pt101']['etiqueta'].lower()} disponible.")
+    acumulado = vecindad.calcular_acumulado_diario_automatica(df_auto)
+    if acumulado is not None:
+        nombre = "Acumulado diario (auto)" + (_NOTA_CALCULADO if acumulado["calculado"] else "")
+        puntos1.append({"nombre": nombre, "serie": acumulado["serie"], "color": _COLOR_EXTREMO_MAXIMA,
+                         "symbol": "diamond"})
+        if acumulado["calculado"]:
+            mensajes.append(f"Nota: {nombre}.")
+    else:
+        mensajes.append(f"{cod_auto} no tiene acumulado diario disponible (ni n_dayrain ni n_lluvia).")
+    fig1 = charts.serie_puntos_diarios(
+        puntos1, titulo=f"{cod_auto} ↔ {cod_conv} · Acumulado diario", yaxis_title="Precipitación (mm)",
+    )
+
+    # Gráfico 2: ventaneo 07h/19h — cálculo propio de vecindad (autorizado
+    # explícitamente por el usuario, ver docs/SPEC-vecindad.md Ronda 2).
+    ventaneo = vecindad.calcular_ventaneo_automatica(df_auto)
+    puntos2 = [e for e in extra_todas if e["tipo"] == "puntual"]
+    columnas_puntual_presentes = {e["columna"] for e in puntos2}
+    for col, meta in metadata.items():
+        if meta["tipo"] == "puntual" and col not in columnas_puntual_presentes:
+            mensajes.append(f"{cod_conv} no tiene {meta['etiqueta'].lower()} disponible.")
+    for clave, etiqueta, color in (
+        ("nocturna", "Nocturna 19h→07h (auto, calculado)", _COLOR_VENTANA_NOCTURNA),
+        ("diurna", "Diurna 07h→19h (auto, calculado)", _COLOR_VENTANA_DIURNA),
+    ):
+        serie = ventaneo.get(clave)
+        if serie is None or serie.empty:
+            mensajes.append(f"{cod_auto} no tiene n_lluvia disponible para calcular la ventana {clave}.")
+            continue
+        puntos2.append({"nombre": etiqueta, "serie": serie, "color": color, "symbol": "diamond"})
+    fig2 = charts.serie_puntos_diarios(
+        puntos2, titulo=f"{cod_auto} ↔ {cod_conv} · Ventaneo 07h/19h", yaxis_title="Precipitación (mm)",
+    )
+
+    # Diferencias (convencional − automática)
+    dif_diaria = vecindad.calcular_diferencias_precipitacion_diaria(df_auto, df_conv)
+    lista_diff1 = []
+    if dif_diaria is not None and not dif_diaria.empty:
+        lista_diff1.append({"nombre": "Total diaria", "serie": dif_diaria,
+                             "color": colores_por_columna.get("n_pt101", "#2ca02c")})
+    fig_diff1 = charts.panel_diferencias_vecindad(lista_diff1, titulo="Dif. acumulado diario (conv.−auto.)")
+
+    dif_ventaneo = vecindad.calcular_diferencias_precipitacion_ventaneo(df_auto, df_conv)
+    lista_diff2 = [
+        {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
+        for col, s in dif_ventaneo.items() if not s.empty
+    ]
+    fig_diff2 = charts.panel_diferencias_vecindad(lista_diff2, titulo="Dif. ventaneo 07h/19h (conv.−auto.)")
+
+    return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
+
+
 @callback(
-    Output("g-vecindad", "figure"),
+    Output("g-vecindad-1", "figure"),
+    Output("g-vecindad-2", "figure"),
+    Output("g-vecindad-diff-1", "figure"),
+    Output("g-vecindad-diff-2", "figure"),
     Output("div-vecindad-mensaje", "children"),
     Input("dd-vecindad-par", "value"),
     Input("rb-vecindad-variable", "value"),
@@ -941,13 +1103,15 @@ def actualizar_periodo_vecindad(par_value):
 )
 def actualizar_vecindad(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_incluidos):
     vacio = charts.overlay_multivar(pd.DataFrame(), None, None, {}, {})
+    vacio_diff = charts.panel_diferencias_vecindad([])
     cod_auto, cod_conv = _dividir_par_vecindad(par_value)
     if not cod_auto:
-        return vacio, "Elige un par arriba."
+        return vacio, vacio, vacio_diff, vacio_diff, "Elige un par arriba."
 
     df = data_loader.cargar_estaciones([cod_auto, cod_conv], fecha_inicio, fecha_fin)
     if df.empty:
-        return vacio, f"Sin datos descargados para {cod_auto}/{cod_conv} en el periodo elegido."
+        msg = f"Sin datos descargados para {cod_auto}/{cod_conv} en el periodo elegido."
+        return vacio, vacio, vacio_diff, vacio_diff, msg
 
     # CC propio del Analizador (cc_n_*) — capa independiente del flag de SIGMA,
     # se aplica a ambas estaciones del par por igual (ver docs/SPEC-vecindad.md).
@@ -957,24 +1121,9 @@ def actualizar_vecindad(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_
     df_auto = df[df["codigo"] == cod_auto.upper()].sort_values("datetime").set_index("datetime")
     df_conv = df[df["codigo"] == cod_conv.upper()].sort_values("datetime").set_index("datetime")
 
-    var_auto = vecindad.EQUIVALENCIA_VARIABLES[variable_fisica]["automatica"]
-    if df_auto.empty or var_auto not in df_auto.columns:
-        return vacio, f"{cod_auto} no tiene {var_auto} descargada en este periodo."
-
-    extra_series = vecindad.armar_extra_series_convencional(df_conv, variable_fisica)
-    if df_conv.empty:
-        mensaje = f"{cod_conv} no tiene datos descargados en este periodo — mostrando solo la automática."
-    elif not extra_series:
-        mensaje = f"{cod_conv} no tiene ninguna columna de {variable_fisica} disponible en este periodo."
-    else:
-        mensaje = ""
-
-    info_auto = series_derivadas.info_variable(var_auto)
-    fig = charts.overlay_multivar(
-        df_auto, var_auto, None, info_auto, {}, extra_series=extra_series,
-        titulo=f"{cod_auto} (automática) vs. {cod_conv} (convencional)",
-    )
-    return fig, mensaje
+    if variable_fisica == "temperatura":
+        return _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff)
+    return _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

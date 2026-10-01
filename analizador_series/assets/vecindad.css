@@ -1,0 +1,9 @@
+/* Disclaimer de vecindad (ver ui/tab_vecindad.py): dcc.Markdown envuelve los
+   nombres de variable entre backticks en <code>, y el tema de Bootstrap les
+   fija un font-size en rem (relativo a la raíz del documento) en vez de em
+   (relativo al padre) — por eso no se achican junto con el texto ".small"
+   que los rodea y terminan viéndose más grandes que la prosa. Forzamos que
+   hereden el tamaño real del texto que los contiene. */
+.vecindad-disclaimer code {
+    font-size: inherit;
+}

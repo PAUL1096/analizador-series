@@ -705,7 +705,8 @@ def overlay_multivar(df: pd.DataFrame, var1: str | None, var2: str | None,
         s = pd.to_numeric(extra["serie"], errors="coerce").dropna()
         color = extra.get("color", "#2ca02c")
         modo = extra.get("modo", "lines")
-        kwargs = dict(marker=dict(color=color, size=7)) if modo == "markers" \
+        kwargs = dict(marker=dict(color=color, size=7, symbol=extra.get("symbol", "circle"))) \
+            if modo == "markers" \
             else dict(line=dict(color=color, width=1.0, dash=extra.get("dash", "dot")))
         fig.add_trace(
             go.Scattergl(
@@ -732,9 +733,78 @@ def overlay_multivar(df: pd.DataFrame, var1: str | None, var2: str | None,
     if usar_eje2:
         fig.update_yaxes(title_text=f"{info2.get('display_name','')} ({unidad2})", secondary_y=True)
     fig.update_layout(
-        title=titulo, template="plotly_white", height=440,
-        margin=dict(l=60, r=60, t=50, b=40), hovermode="x unified",
+        title=dict(text=titulo, font=dict(size=13), x=0.01, xanchor="left"),
+        template="plotly_white", height=440,
+        margin=dict(l=60, r=60, t=85, b=40), hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    fig.update_xaxes(rangeslider_visible=False)
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Panel de diferencias (vecindad) — solo para variables "puntual" (07h/13h/19h),
+# ver core.vecindad.calcular_diferencias_puntuales. Nunca para "diaria"
+# (máx/mín/total): eso exigiría calcular un agregado propio, tarea de PLIA.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def panel_diferencias_vecindad(diferencias: list[dict], titulo: str = "") -> go.Figure:
+    """
+    diferencias: [{"nombre","serie","color"}] — una barra por lectura,
+    convencional menos automática, mismo color que el punto correspondiente
+    en overlay_multivar para que el usuario los asocie a simple vista.
+    """
+    fig = go.Figure()
+    for d in diferencias:
+        s = pd.to_numeric(d["serie"], errors="coerce").dropna()
+        fig.add_trace(go.Bar(
+            x=s.index, y=s.values, name=d.get("nombre", ""),
+            marker=dict(color=d.get("color", "#2ca02c")),
+            hovertemplate="%{x|%Y-%m-%d %H:%M}<br>%{y:+.2f}<extra></extra>",
+        ))
+
+    fig.add_hline(y=0, line=dict(color="#888", width=1))
+    fig.update_layout(
+        title=dict(text=titulo, font=dict(size=12), x=0.01, xanchor="left"),
+        template="plotly_white", height=260, barmode="group",
+        margin=dict(l=60, r=60, t=75, b=30), hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        yaxis_title="Convencional − Automática",
+    )
+    fig.update_xaxes(rangeslider_visible=False)
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Comparación de series diarias (vecindad) — máx/mín de temperatura,
+# acumulado de precipitación. A diferencia de overlay_multivar, ninguna serie
+# es "la principal": todas son puntos (o líneas) de la misma jerarquía.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def serie_puntos_diarios(series: list[dict], titulo: str = "", yaxis_title: str = "") -> go.Figure:
+    """
+    series: [{"nombre","serie","color","modo"?,"symbol"?}] — modo default
+    "markers" (default también usado por panel_diferencias_vecindad: puntos
+    diarios, sin conectar series de fuentes distintas con una línea que
+    sugeriría continuidad falsa entre ellas).
+    """
+    fig = go.Figure()
+    for d in series:
+        s = pd.to_numeric(d["serie"], errors="coerce").dropna()
+        modo = d.get("modo", "markers")
+        fig.add_trace(go.Scatter(
+            x=s.index, y=s.values, name=d.get("nombre", ""), mode=modo,
+            marker=dict(color=d.get("color", "#2ca02c"), size=7, symbol=d.get("symbol", "circle")),
+            line=dict(color=d.get("color", "#2ca02c"), width=1.0) if "lines" in modo else None,
+            hovertemplate="%{x|%Y-%m-%d}<br>%{y:.2f}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title=dict(text=titulo, font=dict(size=13), x=0.01, xanchor="left"),
+        template="plotly_white", height=350,
+        margin=dict(l=60, r=60, t=85, b=30), hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        yaxis_title=yaxis_title,
     )
     fig.update_xaxes(rangeslider_visible=False)
     return fig

@@ -89,10 +89,95 @@ Fecha,Hora,n_pt101,n_pt102,n_pt103,n_tm102,n_tm103,n_tm104,n_tm105,n_tm106,n_tm1
   `extra_series` comparten un verde fijo) — necesario para mostrar 3-5 puntos
   convencionales distinguibles entre sí sobre la línea continua.
 
+## Revisión de alcance (2026-09-30, tras ver el resultado real)
+
+Al probar con datos reales, dos correcciones al diseño original, confirmadas
+con el usuario antes de implementar:
+
+- **Catálogo oficial de SIGMA** (confirmado en Análisis → DataMonitor):
+  `n_tm102`/`n_tm103` son **Máxima/Mínima diaria** (sin hora puntual real);
+  `n_tm104`/`105`/`106` son lecturas a **horas sinópticas exactas** (07h/13h/19h);
+  `n_pt101` es **Total diaria**; `n_pt102`/`n_pt103` son **07h/19h**. El
+  diseño original asumía todas homogéneas — no lo eran. Fix: cada punto
+  convencional se desplaza de medianoche a su hora real (puntual) o al
+  mediodía con símbolo distinto — diamante — (diaria), para no comparar
+  "diarias contra el instante equivocado de la curva horaria" ni insinuar
+  que una diaria es una lectura puntual. Ver `core.vecindad.EQUIVALENCIA_VARIABLES`
+  (metadata `tipo`/`hora` por columna) y `armar_extra_series_convencional`.
+- **Panel de diferencias — excepción acotada al límite de abajo, no su
+  eliminación:** se agregó un panel de diferencias (convencional − automática)
+  **solo para las columnas "puntual"** (07h/13h/19h), porque ahí la
+  automática SÍ tiene un valor real en ese instante exacto con el que
+  comparar directo — no es una estadística agregada, es una resta punto a
+  punto. Las "diaria" (máx/mín/total) siguen **sin** diferencia: calcularla
+  exigiría que vecindad compute su propio agregado diario de la automática,
+  y esa rigurosidad sigue siendo tarea exclusiva de PLIA (el límite de abajo
+  sigue vigente para ese caso). Ver `core.vecindad.calcular_diferencias_puntuales`
+  y `ui.charts.panel_diferencias_vecindad`.
+
+## Revisión de alcance, Ronda 2 (2026-09-30, mismo día — rediseño completo)
+
+Con datos reales de convencional ya descargados, el usuario probó el gráfico
+de Ronda 1 y señaló que mezclar horas sinópticas y diarias en un mismo punto
+de comparación no permitía apreciar bien los datos. Tras discutir la física
+real del proceso de observación convencional (la probeta se vacía en cada
+lectura; el "día meteorológico" cierra a las 07h), se rediseñó por completo
+en 4 gráficos separados por tipo de comparación, con dos hallazgos nuevos
+verificados con datos reales:
+
+- **La automática SÍ tiene sus propios extremos/acumulados diarios
+  reales, sin que vecindad calcule nada:** `n_maxat`/`n_minat` (Máx/Mín
+  Diaria, confirmado 482 registros reales en 4728B11C) y `n_dayrain`
+  (acumulado diario, 486 registros reales) — el equivalente exacto de
+  `n_tm102`/`n_tm103`/`n_pt101` de la convencional. Respaldo si estas
+  columnas no existen, **siempre marcado con una nota explícita**
+  ("calculado por el Analizador — la automática no reporta oficialmente
+  este valor"), nunca silencioso:
+  - Temperatura: el máximo/mínimo de `n_maxath`/`n_minath` (el pico/valle
+    que la automática YA agrega por hora) a lo largo del día — **nunca**
+    `n_airtemp` (corregido tras un error real de esta misma sesión: `n_airtemp`
+    subestima picos intra-hora — verificado en 104114, 16.6°C de max(n_airtemp)
+    vs. 18.8°C real de max(n_maxath) el mismo día; ver tasks/todo.md).
+  - Precipitación: suma de `n_lluvia` en la ventana 07h→07h (ver más abajo).
+  Ver `core.vecindad.calcular_extremos_diarios_automatica` y
+  `calcular_acumulado_diario_automatica`.
+- **`n_pt101` tiene un desfase de fecha real frente a `n_dayrain`,
+  verificado con datos reales (21/21 casos no triviales en 106077):** SIGMA
+  fecha `n_pt101` con el día que **empieza** la ventana nocturna
+  (`n_pt103[D] + n_pt102[D+1] = n_pt101[D]`), mientras que `n_dayrain` de la
+  automática se fecha con el día que la **cierra** (07:00 de ese día). Para
+  comparar el mismo período físico, `n_pt101` se corre un día hacia adelante
+  antes de restar — ver `desfase_dias_cierre` en `EQUIVALENCIA_VARIABLES` y
+  `calcular_diferencias_precipitacion_diaria`.
+- **Ventaneo 07h/19h de precipitación — excepción explícitamente autorizada
+  por el usuario, no una reversión del límite general:** se suma `n_lluvia`
+  de la automática en las ventanas 19:01→07:00 (nocturna) y 07:01→19:00
+  (diurna) para comparar contra `n_pt102`/`n_pt103` — cálculo propio de
+  vecindad, marcado siempre como tal en el título del gráfico ("cálculo
+  propio de vecindad, no la lógica de PLIA"). El filtro de CC ya aplicado en
+  el pipeline evita que outliers de sensor (se encontró uno real, -11162mm en
+  `n_lluvia`) contaminen la suma. Ver `core.vecindad.calcular_ventaneo_automatica`.
+
+**4 gráficos resultantes** (antes eran 2): para cada variable física, un
+gráfico principal + uno secundario + sus 2 diferencias correspondientes — ver
+`ui.tab_vecindad.layout` (`g-vecindad-1/2/diff-1/diff-2`) y
+`ui.callbacks._figuras_vecindad_temperatura`/`_figuras_vecindad_precipitacion`.
+Detalle completo de la discusión y verificación en `tasks/todo.md`.
+
 ## Alcance — qué NO incluye (explícitamente fuera)
 
-- **Ninguna estadística de comparación** (sesgo, MAE, RMSE, correlación, tests) —
-  eso es PLIA, herramienta separada por decisión explícita del usuario.
+- **Ninguna estadística de comparación rigurosa** (bias/MAE/RMSE, Kendall/
+  Pearson, KS, BIASS/POD/FAR, coeficiente de inconsistencia — la batería real
+  de `PLIA/comparacion_core.py`) — eso sigue siendo tarea exclusiva de PLIA,
+  herramienta separada por decisión explícita del usuario. Las excepciones
+  ya autorizadas (Ronda 2, arriba) son: (a) diferencia punto a punto
+  automática-menos-convencional en el mismo instante exacto (horas
+  sinópticas) — no es una estadística agregada; (b) usar extremos/acumulados
+  diarios que SIGMA ya calculó para la automática (`n_maxat`/`n_minat`/
+  `n_dayrain`) — no es que vecindad los calcule; (c) el ventaneo 07h/19h de
+  precipitación, que sí es un cálculo propio de vecindad pero acotado a una
+  suma simple con ventana fija, siempre marcado como tal. Ninguna de estas
+  reemplaza ni aproxima el rigor estadístico de PLIA.
 - **Ninguna firma automática de divergencia** (tipo AF-REP) — decidido en la sesión
   anterior, solo vista visual.
 - Sin humedad relativa, presión ni viento en la convencional (no confirmado que
