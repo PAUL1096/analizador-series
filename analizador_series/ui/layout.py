@@ -149,4 +149,8 @@ def layout_principal() -> html.Div:
         dcc.Store(id="store-datos-crudos"),
         # Dispara una vez al cargar la página para poblar el dropdown de estaciones
         dcc.Interval(id="interval-inicio", interval=300, n_intervals=0, max_intervals=1),
+        html.Footer(
+            "Servicio Nacional de Meteorología e Hidrología del Perú — SENAMHI",
+            className="text-muted small text-center mt-4 pt-3 border-top",
+        ),
     ], fluid=True, className="px-3 pb-4")

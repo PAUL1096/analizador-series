@@ -29,13 +29,17 @@ from analizador_series.config import DIR_AUTO, DIR_CONV, CATALOGO_DB
 
 def metadata_estaciones(codigos: list[str] | None = None) -> pd.DataFrame:
     """
-    Retorna DataFrame con codigo, nombre, dz, categoria, activa, altitud,
-    region_natural de las estaciones pedidas. Si codigos es None retorna todas las
-    activas. altitud/region_natural pueden venir NULL si data_ref/actualizar_geodatos.py
-    no se corrió todavía para esa estación (core.control_calidad las trata como
-    metadata faltante, no como error).
+    Retorna DataFrame con codigo, nombre, dz, categoria, clasificacion, activa,
+    altitud, region_natural de las estaciones pedidas. Si codigos es None retorna
+    todas las activas. clasificacion es el código operativo (EMA/EAA/EHA/EHMA/PE/PLU
+    para automáticas; CO/CP/HLG/HLM/MAP/PE/PLU para convencionales — más específico
+    que categoria, que solo distingue AUTOMATICA/CONVENCIONAL). altitud/region_natural
+    pueden venir NULL si data_ref/actualizar_geodatos.py no se corrió todavía para esa
+    estación (core.control_calidad las trata como metadata faltante, no como error).
     """
-    columnas_vacias = ["codigo", "nombre", "dz", "categoria", "activa", "altitud", "region_natural"]
+    columnas_vacias = [
+        "codigo", "nombre", "dz", "categoria", "clasificacion", "activa", "altitud", "region_natural",
+    ]
     if not CATALOGO_DB.exists():
         return pd.DataFrame(columns=columnas_vacias)
 
@@ -43,14 +47,14 @@ def metadata_estaciones(codigos: list[str] | None = None) -> pd.DataFrame:
         codigos = [c.upper() for c in codigos]
         placeholders = ",".join("?" * len(codigos))
         q = f"""
-            SELECT codigo, nombre, dz, categoria, activa, altitud, region_natural
+            SELECT codigo, nombre, dz, categoria, clasificacion, activa, altitud, region_natural
             FROM estaciones
             WHERE codigo IN ({placeholders})
         """
         params = codigos
     else:
         q = """
-            SELECT codigo, nombre, dz, categoria, activa, altitud, region_natural
+            SELECT codigo, nombre, dz, categoria, clasificacion, activa, altitud, region_natural
             FROM estaciones
             WHERE activa = 1
             ORDER BY dz, categoria, nombre

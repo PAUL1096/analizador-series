@@ -371,7 +371,11 @@ def renderizar_tab(active_tab, codigos):
         estacion_opts, estacion_value = _opciones_estacion_comparar(codigos)
         return tab_crudo.layout(estacion_opts=estacion_opts, estacion_value=estacion_value)
     if active_tab == "tab-vecindad":
-        pares_opts = tab_vecindad.opciones_pares(vecindad.calcular_pares_colocados())
+        pares = vecindad.calcular_pares_colocados()
+        codigos_par = {c for p in pares for c in (p["codigo_auto"], p["codigo_conv"])}
+        meta = data_loader.metadata_estaciones(list(codigos_par)) if codigos_par else pd.DataFrame()
+        nombres = _mapa_nombre_clasificacion(meta)
+        pares_opts = tab_vecindad.opciones_pares(pares, nombres)
         return tab_vecindad.layout(pares_opts=pares_opts)
     variable_opts, variable_value = _opciones_variable(codigos)
     return tab_estadistica.layout(variable_opts=variable_opts, variable_value=variable_value)
@@ -512,7 +516,7 @@ def actualizar_grafico_series(df_data, derivadas_data, percentil, variable):
     # Mapa codigo -> nombre para etiquetas de leyenda
     codigos_presentes = sorted(df["codigo"].unique().tolist())
     meta = data_loader.metadata_estaciones(codigos_presentes)
-    nombres = dict(zip(meta["codigo"], meta["nombre"])) if not meta.empty else {}
+    nombres = _mapa_nombre_clasificacion(meta)
 
     # Construir dict de DataFrames de derivadas
     derivadas: dict[str, pd.DataFrame] = {}
@@ -716,7 +720,7 @@ def actualizar_tabla_panorama(datos_crudos, incluir_bias):
     codigos = sorted(df["codigo"].unique().tolist())
 
     meta = data_loader.metadata_estaciones(codigos)
-    nombres = dict(zip(meta["codigo"], meta["nombre"])) if not meta.empty else {}
+    nombres = _mapa_nombre_clasificacion(meta)
     propias = {c: data_loader.variables_propias_estacion(c) for c in codigos}
     rangos = {v: series_derivadas.info_variable(v).get("rango_fisico") for v in variables}
     display_names = {v: series_derivadas.info_variable(v).get("display_name", v) for v in variables}
@@ -767,7 +771,7 @@ def actualizar_panel_panorama(seleccionadas, datos_crudos, incluir_bias):
         return dbc.Alert("No se pudo resolver la selección.", color="warning", className="mb-0")
 
     meta = data_loader.metadata_estaciones(sorted({p[0] for p in paneles}))
-    nombres = dict(zip(meta["codigo"], meta["nombre"])) if not meta.empty else {}
+    nombres = _mapa_nombre_clasificacion(meta)
     hijos = [dcc.Graph(figure=charts.panel_alineado_panorama(paneles, nombres=nombres),
                         config={"displaylogo": False})]
     if len(seleccionadas) > 8:
@@ -916,6 +920,36 @@ def _dividir_par_vecindad(par_value: str | None) -> tuple[str | None, str | None
     return cod_auto, cod_conv
 
 
+def _mapa_nombre_clasificacion(meta: pd.DataFrame) -> dict[str, str]:
+    """{codigo: "Nombre · CLASIF"} a partir de metadata_estaciones() — CLASIF es
+    el código operativo real (EMA/EAA/EHA/EHMA/PE/PLU para automáticas;
+    CO/CP/HLG/HLM/MAP/PE/PLU para convencionales, ver data_ref/estaciones.db),
+    no el `categoria` genérico (solo AUTOMATICA/CONVENCIONAL) — pedido explícito
+    del usuario 2026-10-01: el código de estación solo no se reconoce rápido, y
+    tampoco alcanza con saber si es automática o convencional, hace falta el
+    tipo específico "tal como dice la maestra"."""
+    if meta.empty:
+        return {}
+    resultado = {}
+    for row in meta.itertuples():
+        clasif = getattr(row, "clasificacion", None)
+        resultado[row.codigo] = f"{row.nombre} · {clasif}" if clasif else row.nombre
+    return resultado
+
+
+def _etiqueta_estacion(codigo: str, nombres: dict[str, str]) -> str:
+    """"CODIGO · Nombre · CLASIF" — el código solo no se reconoce rápido a simple
+    vista (pedido del usuario, 2026-10-01); mismo patrón ya usado en
+    _opciones_estacion_comparar() para Comparar/Vista cruda. `nombres` viene de
+    _mapa_nombre_clasificacion(), ya trae nombre+clasificación combinados."""
+    nombre = nombres.get(codigo)
+    return f"{codigo} · {nombre}" if nombre else codigo
+
+
+def _titulo_par_vecindad(cod_auto: str, cod_conv: str, nombres: dict[str, str]) -> str:
+    return f"{_etiqueta_estacion(cod_auto, nombres)} ↔ {_etiqueta_estacion(cod_conv, nombres)}"
+
+
 @callback(
     Output("dt-periodo-vecindad", "min_date_allowed"),
     Output("dt-periodo-vecindad", "max_date_allowed"),
@@ -944,11 +978,12 @@ _COLOR_EXTREMO_MAXIMA = "#1f77b4"
 _COLOR_EXTREMO_MINIMA = "#ff7f0e"
 _COLOR_VENTANA_NOCTURNA = "#1f77b4"
 _COLOR_VENTANA_DIURNA = "#ff7f0e"
-_NOTA_CALCULADO = " (calculado por el Analizador — la automática no reporta oficialmente este valor)"
+_NOTA_CALCULADO = " (calculada)"
 
 
-def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff):
+def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
     mensajes = []
+    titulo_par = _titulo_par_vecindad(cod_auto, cod_conv, nombres)
     metadata = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["convencional"]
     var_auto = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica"]
     extra_todas = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
@@ -963,7 +998,7 @@ def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, v
         info_auto = series_derivadas.info_variable(var_auto)
         fig1 = charts.overlay_multivar(
             df_auto, var_auto, None, info_auto, {}, extra_series=extra_puntual,
-            titulo=f"{cod_auto} ↔ {cod_conv} · Horaria",
+            titulo=f"{titulo_par} · Horaria",
         )
         if df_conv.empty:
             mensajes.append(f"{cod_conv} no tiene datos descargados en este periodo.")
@@ -995,7 +1030,7 @@ def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, v
         if fuente["calculado"]:
             mensajes.append(f"Nota: {nombre}.")
     fig2 = charts.serie_puntos_diarios(
-        puntos2, titulo=f"{cod_auto} ↔ {cod_conv} · Máx/mín diaria", yaxis_title="Temperatura (°C)",
+        puntos2, titulo=f"{titulo_par} · Máx/mín diaria", yaxis_title="Temperatura (°C)",
     )
 
     # Diferencias (convencional − automática)
@@ -1017,8 +1052,9 @@ def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, v
     return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
 
 
-def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff):
+def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
     mensajes = []
+    titulo_par = _titulo_par_vecindad(cod_auto, cod_conv, nombres)
     metadata = vecindad.EQUIVALENCIA_VARIABLES["precipitacion"]["convencional"]
     extra_todas = vecindad.armar_extra_series_convencional(df_conv, "precipitacion")
     colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
@@ -1047,7 +1083,7 @@ def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio,
     else:
         mensajes.append(f"{cod_auto} no tiene acumulado diario disponible (ni n_dayrain ni n_lluvia).")
     fig1 = charts.serie_puntos_diarios(
-        puntos1, titulo=f"{cod_auto} ↔ {cod_conv} · Acumulado diario", yaxis_title="Precipitación (mm)",
+        puntos1, titulo=f"{titulo_par} · Acumulado diario", yaxis_title="Precipitación (mm)",
     )
 
     # Gráfico 2: ventaneo 07h/19h — cálculo propio de vecindad (autorizado
@@ -1068,7 +1104,7 @@ def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio,
             continue
         puntos2.append({"nombre": etiqueta, "serie": serie, "color": color, "symbol": "diamond"})
     fig2 = charts.serie_puntos_diarios(
-        puntos2, titulo=f"{cod_auto} ↔ {cod_conv} · Ventaneo 07h/19h", yaxis_title="Precipitación (mm)",
+        puntos2, titulo=f"{titulo_par} · Ventaneo 07h/19h", yaxis_title="Precipitación (mm)",
     )
 
     # Diferencias (convencional − automática)
@@ -1121,9 +1157,12 @@ def actualizar_vecindad(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_
     df_auto = df[df["codigo"] == cod_auto.upper()].sort_values("datetime").set_index("datetime")
     df_conv = df[df["codigo"] == cod_conv.upper()].sort_values("datetime").set_index("datetime")
 
+    meta = data_loader.metadata_estaciones([cod_auto, cod_conv])
+    nombres = _mapa_nombre_clasificacion(meta)
+
     if variable_fisica == "temperatura":
-        return _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff)
-    return _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff)
+        return _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres)
+    return _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -49,12 +49,20 @@ DISCLAIMER_PRECIPITACION_MD = """
 """
 
 
-def opciones_pares(pares: list[dict]) -> list[dict]:
+def opciones_pares(pares: list[dict], nombres: dict[str, str] | None = None) -> list[dict]:
     """[{"codigo_auto","codigo_conv","distancia_m"}] -> opciones de dcc.Dropdown,
-    value codifica el par como "{codigo_auto}|{codigo_conv}"."""
+    value codifica el par como "{codigo_auto}|{codigo_conv}". `nombres` (opcional,
+    {codigo: nombre}) agrega el nombre de cada estación a la etiqueta — el código
+    solo no se reconoce rápido a simple vista (pedido del usuario, 2026-10-01)."""
+    nombres = nombres or {}
+
+    def _etq(codigo: str) -> str:
+        nombre = nombres.get(codigo)
+        return f"{codigo} · {nombre}" if nombre else codigo
+
     return [
         {
-            "label": f"{p['codigo_auto']} ↔ {p['codigo_conv']} · {p['distancia_m']:.0f}m",
+            "label": f"{_etq(p['codigo_auto'])} ↔ {_etq(p['codigo_conv'])} · {p['distancia_m']:.0f}m",
             "value": f"{p['codigo_auto']}|{p['codigo_conv']}",
         }
         for p in pares
@@ -92,12 +100,24 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                             display_format="YYYY-MM-DD",
                             clearable=True,
                         ),
-                        html.Div(
-                            dcc.Markdown(DISCLAIMER_TEMPERATURA_MD, className="small text-muted mb-0"),
-                            id="div-vecindad-disclaimer", className="mt-2 vecindad-disclaimer",
-                        ),
                     ], md=4),
                 ], className="g-2 align-items-start"),
+
+                # Disclaimer en su propia fila, ancho completo — antes vivía apretado
+                # dentro de la columna de Periodo (md=4) y esa columna, al ser la más
+                # alta del Row (texto de 3-4 líneas vs. un dropdown/toggle de 1 línea
+                # en las otras dos), dejaba un hueco en blanco debajo de "Par
+                # co-ubicado" y "Variable física" (el Row completo toma la altura del
+                # hijo más alto). Separarlo en su propia fila evita el hueco Y le da
+                # más ancho real al texto técnico.
+                dbc.Row([
+                    dbc.Col(
+                        html.Div(
+                            dcc.Markdown(DISCLAIMER_TEMPERATURA_MD, className="small text-muted mb-0"),
+                            id="div-vecindad-disclaimer", className="vecindad-disclaimer",
+                        ),
+                    ),
+                ], className="g-2 mt-1"),
 
                 dbc.Row([
                     dbc.Col([
