@@ -1,4 +1,4 @@
-# Spec: control-calidad — Pipeline de Control de Calidad local del Analizador
+# Spec: control-calidad — Control de Calidad local del Analizador
 
 Module id: `control-calidad` (capability map: `control-calidad` → `emplazamiento`)
 
@@ -49,8 +49,8 @@ no cambiaron desde la última vez.
 ## Alcance — qué NO incluye (explícitamente fuera)
 
 - **Nunca sale de la máquina que corre el Analizador.** No se sincroniza a
-  `sgo.db`/`sgo_v3.db`, no se comparte con SGD, no se conecta al motor de alertas
-  institucional (`Dashboard-para-monitoreo-de-la-operatividad`, otro repo). Esta es
+  ninguna base institucional, no se comparte con SGD, no se conecta a ningún
+  sistema de alertas. Esta es
   una restricción explícita y no negociable del usuario — no un detalle de
   implementación.
 - No implementa el CC oficial de SGD (MT-DRD-002/003) completo ni pretende
@@ -140,7 +140,7 @@ necesitan librerías adicionales a las ya instaladas en el env `analizador_serie
 ## Commands
 
 ```
-Test:  C:\Users\drd06\.conda\envs\analizador_series\python.exe -m pytest tests/ -v
+Test:  python -m pytest tests/ -v          (con el env analizador_series activo)
 Correr app: python analizador_series/app.py  (puerto configurable, no usar 8053/8099)
 ```
 
@@ -187,8 +187,7 @@ versión de lógica, y compatibilidad con caché pre-existente sin la llave nuev
 - **Ask first:** cambiar la ubicación del toggle en la UI si no es un control
   compartido; agregar cualquier dependencia nueva a `requirements.txt`.
 - **Never:** escribir o sincronizar el resultado del CC hacia
-  `Dashboard-para-monitoreo-de-la-operatividad`, `sgo.db`, `sgo_v3.db`, o cualquier
-  sistema fuera de este repo; mezclar la columna `cc_n_*` con `flag_n_*` de SIGMA en
+  cualquier base o sistema fuera de este repo; mezclar la columna `cc_n_*` con `flag_n_*` de SIGMA en
   el mismo campo (deben quedar separadas y ambas filtrables).
 
 ## Success Criteria
@@ -209,10 +208,9 @@ versión de lógica, y compatibilidad con caché pre-existente sin la llave nuev
    estaciones convencionales usadas en las reglas de variación diaria.
 6. 100% de los tests nuevos en verde + los tests existentes (87 al momento de
    escribir esto) siguen en verde.
-7. Ninguna escritura de red ni a rutas fuera de `Analizador-Series/` en todo el
+7. Ninguna escritura de red ni a rutas fuera de la carpeta del proyecto en todo el
    módulo — verificable por inspección (no hay imports de `requests`/`sqlite3` hacia
-   otra base que no sea `data_ref/estaciones.db`, no hay paths hacia
-   `Dashboard-para-monitoreo-de-la-operatividad`).
+   otra base que no sea `data_ref/estaciones.db`, no hay paths hacia otros proyectos).
 
 ## Open Questions
 

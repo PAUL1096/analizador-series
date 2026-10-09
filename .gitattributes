@@ -1,0 +1,2 @@
+# Los .bat deben tener finales de línea CRLF en Windows (cmd falla con goto/etiquetas en LF)
+*.bat text eol=crlf

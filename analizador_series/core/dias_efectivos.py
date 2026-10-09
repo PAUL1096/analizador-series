@@ -3,8 +3,8 @@ Día efectivo: por cada día, ¿llegó suficiente dato sub-diario para que un
 promedio/valor diario calculado a partir de él sea representativo?
 
 Dos usos distintos, con distinto nivel de riesgo sobre la convención exacta
-de "día" (ver docs/ESTADO_MIGRACION_Y_PENDIENTES.md — pendiente confirmar la
-convención meteorológica institucional exacta con un especialista):
+de "día" (pendiente confirmar la convención meteorológica institucional
+exacta con un especialista):
 
 - evaluar_dias_efectivos(): banda genérica para explorar cualquier variable
   cruda. Usa DÍA CALENDARIO (medianoche a medianoche) — una simplificación

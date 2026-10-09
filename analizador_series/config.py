@@ -27,8 +27,6 @@ AFECTACIONES_YAML = DIR_CONFIG / "afectaciones.yaml"
 
 # ── Servidor Dash ─────────────────────────────────────────────────────────────
 DASH_HOST = "0.0.0.0"
-# 8054, no 8053: el original (repo SGO) sigue en 8053 para uso operativo diario
-# — con puertos distintos, ambas copias pueden correr al mismo tiempo.
 DASH_PORT = 8054
 DASH_DEBUG = False
 

@@ -13,7 +13,7 @@ Taxonomía AF-*: AF-MISS (ausencia total) · AF-GAP (huecos intermitentes) · AF
 ### Veredicto build-vs-adopt por AF-*
 | AF-* | Recomendación | Herramienta/algoritmo a reusar |
 |---|---|---|
-| AF-MISS | **Adoptar (trivial)** | Conteo de esperados vs recibidos; ya lo hace tu pipeline. Todos los organismos lo tratan como test de integridad. |
+| AF-MISS | **Adoptar (trivial)** | Conteo de esperados vs recibidos; ya lo calcula el Analizador. Todos los organismos lo tratan como test de integridad. |
 | AF-GAP | **Adoptar lógica de "suficiencia"** | Umbral de completitud por ventana (KMA 90% = 54/60 min·h; CRC-SAS mínimos de conteo). No requiere librería. |
 | AF-OUT | **ADOPTAR librería** | `ioos_qc` (gross_range + spike) y/o MetObs-toolkit (gross value + step). Umbrales de rango de Synoptic Data / TITAN / CRC-SAS. |
 | AF-NOIS | **ADOPTAR + calibrar** | `ioos_qc.attenuated_signal_test` (varianza baja por ventana, std o rango). Complementar con rolling-std/z-score propio (ya en tu roadmap). |
@@ -89,7 +89,7 @@ Referente regional que engloba 1.083 estaciones (629 automáticas) de SMN, INMET
 ### IDEAM (Colombia) — Manual M-GDI-M-M005 (2021) + Guía M-GCI-M-G002 v3 (2019) · [V], vigente
 - Reglas operativas: ΔT >3 °C hora-a-hora = error (step); precip 10-min ≥30 mm = erróneo; "0.1 mm seguidos varios minutos" = sensor fallando (flatline); "iguales varias horas, verificar con otras variables" (constante).
 - Límites de validación: Temp aire/máx/mín **−15 a 50 °C**; HR 0-100%; **Precip 24 h 0-350 mm** (0-250 Andina/Caribe/Orinoquia/Amazonía; 0-350 Pacífica); **Precip 1 h 0-60 mm**; consistencia diurna T13 ≥ T19 ≥ T07.
-- **Estados de dato en DHIME:** preliminar (auto tras validación) → en revisión → definitivo. Modelo de estados análogo al de SGO.
+- **Estados de dato en DHIME:** preliminar (auto tras validación) → en revisión → definitivo.
 
 ### SMN (Argentina) — parcialmente [V]; vacío honesto
 - Verificado: Nota Técnica SMN 2021-98 (QC de precipitación en tiempo real por comparación con satélite = consistencia espacial para lluvia); sistema OBSMET centraliza y hace QC en tiempo real.

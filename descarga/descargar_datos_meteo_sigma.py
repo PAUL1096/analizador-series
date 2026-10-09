@@ -58,12 +58,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 # ── Rutas ──────────────────────────────────────────────────────────────────────
-ROOT_PIPELINE  = Path(__file__).resolve().parent
-ROOT_PROYECTO  = ROOT_PIPELINE.parent   # descarga/ está 1 nivel bajo la raíz Analizador-Series/
+ROOT_DESCARGA  = Path(__file__).resolve().parent
+ROOT_PROYECTO  = ROOT_DESCARGA.parent   # descarga/ está 1 nivel bajo la raíz del proyecto
 SIGMA_ROOT     = ROOT_PROYECTO / "sigma"
 DIR_AUTO       = ROOT_PROYECTO / "DATA" / "datos_meteo" / "automaticas"
 DIR_CONV       = ROOT_PROYECTO / "DATA" / "datos_meteo" / "convencionales"
-SGO_DB         = ROOT_PROYECTO / "data_ref" / "estaciones.db"   # catálogo extraído (solo tabla estaciones)
+CATALOGO_DB    = ROOT_PROYECTO / "data_ref" / "estaciones.db"   # catálogo de estaciones (versionado)
 
 DIR_AUTO.mkdir(parents=True, exist_ok=True)
 DIR_CONV.mkdir(parents=True, exist_ok=True)
@@ -195,7 +195,7 @@ def obtener_token(headless: bool = False) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Carga de estaciones desde sgo.db
+# Carga de estaciones desde el catálogo (data_ref/estaciones.db)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def cargar_estaciones(
@@ -204,13 +204,13 @@ def cargar_estaciones(
     codigos: list | None = None,
 ) -> list:
     """
-    Lee estaciones activas de sgo.db.
+    Lee estaciones activas del catálogo data_ref/estaciones.db.
     Retorna lista de dicts: {codigo, nombre, dz, categoria}
 
     Si se pasan codigos, ignora dzs/categorias y busca directamente por código.
     """
-    if not SGO_DB.exists():
-        log.error(f"sgo.db no encontrado en: {SGO_DB}")
+    if not CATALOGO_DB.exists():
+        log.error(f"Catálogo de estaciones no encontrado en: {CATALOGO_DB}")
         return []
 
     if codigos:
@@ -222,13 +222,13 @@ def cargar_estaciones(
             WHERE codigo IN ({','.join('?'*len(codigos_upper))})
             ORDER BY dz, categoria, nombre
         """
-        with sqlite3.connect(str(SGO_DB)) as con:
+        with sqlite3.connect(str(CATALOGO_DB)) as con:
             rows = con.execute(q, codigos_upper).fetchall()
         # Advertir si algún código no se encontró
         encontrados = {r[0] for r in rows}
         for c in codigos_upper:
             if c not in encontrados:
-                log.warning(f"  Codigo no encontrado en sgo.db: {c}")
+                log.warning(f"  Codigo no encontrado en el catálogo: {c}")
         return [{"codigo": r[0], "nombre": r[1], "dz": r[2], "categoria": r[3]} for r in rows]
 
     cats = [c.upper() for c in (categorias or ["AUTOMATICA", "CONVENCIONAL"])]
@@ -246,7 +246,7 @@ def cargar_estaciones(
 
     q += " ORDER BY dz, categoria, nombre"
 
-    with sqlite3.connect(str(SGO_DB)) as con:
+    with sqlite3.connect(str(CATALOGO_DB)) as con:
         rows = con.execute(q, params).fetchall()
 
     return [{"codigo": r[0], "nombre": r[1], "dz": r[2], "categoria": r[3]} for r in rows]
@@ -312,9 +312,8 @@ def _consultar_chunk(
 
 # Variables convencionales sin instrumento (observación visual directa del
 # observador): nubosidad (cantidad/altura, N_NB*) y visibilidad (N_VI*).
-# Catálogo oficial: variables-instrumento-convencionales.xlsx (proyecto
-# Dashboard-para-monitoreo-de-la-operatividad), agrupadas como "VARIABLES
-# OBSERVADAS" en la regla de negocio RN-41 — todo código con esos prefijos
+# Catálogo oficial: variables-instrumento-convencionales.xlsx, agrupadas
+# como "VARIABLES OBSERVADAS" en la regla de negocio RN-41 — todo código con esos prefijos
 # pertenece exclusivamente a ese grupo, ninguna otra variable los usa.
 # Las categóricas V_NB*/V_VT* (forma de nubes, dirección de viento) ya quedan
 # fuera porque abajo solo se toman columnas "n_".
@@ -559,7 +558,7 @@ def main():
             cats = ["AUTOMATICA", "CONVENCIONAL"]
         estaciones = cargar_estaciones(dzs=args.dz, categorias=cats)
     if not estaciones:
-        log.error("Sin estaciones. ¿sgo.db accesible y con registros activos?")
+        log.error("Sin estaciones. ¿data_ref/estaciones.db existe y tiene esos códigos activos?")
         sys.exit(1)
 
     log.info(f"Estaciones: {len(estaciones)} "

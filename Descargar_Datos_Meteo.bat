@@ -3,10 +3,13 @@ REM Lanzador de descarga de datos meteorologicos por estacion (SIGMA-DRD).
 REM %~dp0 = carpeta de este .bat = raiz del proyecto -> cwd correcto para el script.
 cd /d "%~dp0"
 
-REM Python del env conda "analizador_series"; si no esta en la ruta por defecto
-REM (otra PC u otra instalacion de conda), usa el python activo en el PATH.
-set "PY=%USERPROFILE%\.conda\envs\analizador_series\python.exe"
-if not exist "%PY%" set "PY=python"
+REM Busca el Python del entorno conda "analizador_series" en las rutas habituales
+REM de Anaconda/Miniconda. Si no lo encuentra, usa el "python" del PATH (sirve si
+REM se ejecuta desde un Anaconda Prompt con "conda activate analizador_series").
+set "PY=python"
+for %%D in ("%USERPROFILE%\.conda\envs" "%USERPROFILE%\anaconda3\envs" "%USERPROFILE%\miniconda3\envs" "C:\ProgramData\anaconda3\envs" "C:\ProgramData\miniconda3\envs") do (
+    if exist "%%~D\analizador_series\python.exe" set "PY=%%~D\analizador_series\python.exe"
+)
 
 REM ─────────────────────────────────────────────────────────────────────────
 REM  Si se pasan argumentos directamente, ejecutar sin preguntar.

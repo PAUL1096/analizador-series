@@ -369,9 +369,8 @@ variables de más — pero no era necesario para destrabar esto.
   - [x] Gráfico con línea continua + puntos distinguibles (Task 3, 5)
   - [x] Checkbox de CC filtra ambas series (Task 6)
   - [x] 100% tests nuevos en verde (35) + 167 existentes
-  - [x] Ninguna estadística de comparación, ninguna dependencia real de
-        `PLIA/` (solo menciones en docstrings, ningún import), ninguna
-        escritura fuera de `Analizador-Series/` — confirmado con grep sobre
+  - [x] Ninguna estadística de comparación, ninguna
+        escritura fuera de la carpeta del proyecto — confirmado con grep sobre
         todos los archivos tocados
 
 **Nota real, mismo tipo de bloqueo que control-calidad documentó en su
@@ -404,7 +403,7 @@ reales que la Ronda 1 no había cubierto:
    desplaza a su hora real (puntual) o queda al mediodía con símbolo diamante
    (diaria) — ver `docs/SPEC-emplazamiento-compartido.md`, sección "Revisión de alcance".
 2. **"Quizá más abajo podamos colocar las diferencias entre ambos valores"**
-   (mostró como referencia un gráfico estilo PLIA) — cruza el límite
+   (mostró como referencia un gráfico de diferencias) — cruza el límite
    explícito "ninguna estadística de comparación" del spec original.
    Confirmado con el usuario antes de implementar ("Si, hay que considerar
    eso más"): se agregó un panel de diferencias, pero **acotado únicamente a

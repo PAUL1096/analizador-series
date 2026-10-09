@@ -293,7 +293,7 @@ def actualizar_periodo_compartido(codigos):
     if not todos_los_tramos:
         return None, None, None, None, (
             f"Sin datos descargados para {codigos}. "
-            "Ejecuta scripts/pipeline/Descargar_Datos_Meteo.bat primero."
+            "Ejecuta Descargar_Datos_Meteo.bat (raíz del proyecto) primero."
         )
 
     fmin = min(fi for fi, _ in todos_los_tramos)

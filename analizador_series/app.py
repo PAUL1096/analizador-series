@@ -4,8 +4,8 @@ Analizador de Series — Entry point Dash.
 Ejecutar desde la raíz del proyecto:
     python -m analizador_series.app
 
-O usar el .bat:
-    scripts/visualizadores/Iniciar_Analizador_Series.bat
+O usar el .bat de la raíz del proyecto:
+    Iniciar_Analizador.bat
 """
 from __future__ import annotations
 

@@ -68,7 +68,7 @@ def metadata_estaciones(codigos: list[str] | None = None) -> pd.DataFrame:
 def codigos_disponibles() -> pd.DataFrame:
     """
     Inspecciona DATA/datos_meteo/ y retorna lista de códigos que tienen al
-    menos un CSV descargado, con nombre/DZ/categoría desde sgo.db.
+    menos un CSV descargado, con nombre/DZ/categoría desde data_ref/estaciones.db.
     """
     codigos = set()
     for carpeta in (DIR_AUTO, DIR_CONV):

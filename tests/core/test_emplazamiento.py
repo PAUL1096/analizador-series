@@ -279,8 +279,8 @@ class TestCalcularDiferenciasPuntuales:
     """
     Diferencia (convencional - automática) SOLO para columnas "puntual" — para
     las "diaria" (máx/mín/total) calcular una diferencia exigiría que emplazamiento compartido
-    compute su propio agregado diario de la automática, y esa rigurosidad es
-    tarea de PLIA (límite explícito de docs/SPEC-emplazamiento-compartido.md, confirmado con
+    compute su propio agregado diario de la automática, y esa rigurosidad queda
+    fuera de esta herramienta (límite explícito de docs/SPEC-emplazamiento-compartido.md, confirmado con
     el usuario antes de agregar este panel).
     """
 
@@ -447,7 +447,7 @@ class TestCalcularVentaneoAutomatica:
     """
     Suma de n_lluvia en las ventanas nocturna (19:01->07:00) y diurna
     (07:01->19:00), para comparar contra n_pt102/n_pt103. Cálculo propio de
-    emplazamiento compartido (no la lógica rigurosa de PLIA) — autorizado explícitamente por
+    emplazamiento compartido (no un estudio estadístico formal) — autorizado explícitamente por
     el usuario tras confirmar la física real del proceso de observación
     (ver tasks/todo.md, Ronda 2).
     """

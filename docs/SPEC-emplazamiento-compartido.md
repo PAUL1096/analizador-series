@@ -23,23 +23,24 @@ distancia real), elegir "Temperatura" o "Precipitación", y ver la serie continu
 la automática con los puntos de la convencional superpuestos, distinguibles a simple
 vista (no una línea conectando 3 puntos/día, que sugeriría falsamente continuidad).
 
-## Relación con otros proyectos (para no confundir alcance)
+## Límite de alcance: vista visual, no estudio estadístico
 
-**PLIA** (`SGR TEMPORALES/PLIA/`) es un proyecto de investigación completo y aparte,
-con su propio crosswalk verificado de 17 pares y una batería estadística rigurosa
-(`scripts/comparacion_core.py`: sesgo/MAE/RMSE, Kendall/Pearson, KS, BIASS/POD/FAR,
-coeficiente de inconsistencia — citando SMN NT 2023-135 y NT 2024-167). **Decisión
-explícita del usuario: son herramientas separadas.** `emplazamiento` no reemplaza ni
-reimplementa esa rigurosidad — es una vista rápida para explorar CUALQUIER par de la
-red (no solo esos 17), usando el emparejamiento por distancia GPS ya calculado. Se
-usaron los CSV reales de PLIA únicamente para confirmar la nomenclatura real de
-variables convencionales (ver siguiente sección) — ninguna lógica ni dato de PLIA se
-importa al Analizador.
+Una validación formal automática↔convencional (sesgo/MAE/RMSE, Kendall/Pearson,
+KS, BIASS/POD/FAR, coeficiente de inconsistencia — ver SMN NT 2023-135 y
+NT 2024-167) es un estudio aparte, **fuera del alcance de esta herramienta**.
+`emplazamiento` no reemplaza ni reimplementa esa rigurosidad: es una vista rápida
+para explorar CUALQUIER par de la red, usando el emparejamiento por distancia GPS.
 
-## Qué se confirmó con datos reales de PLIA (cambia el diseño original)
+**Estaciones hidrológicas excluidas** (2026-10-09): los pares no incluyen
+estaciones de clasificación EHA (automática hidrológica) ni HLG/HLM
+(convencionales hidrológicas) — su comparación no se hace. EHMA
+(hidrometeorológica automática) sí se incluye, porque mide variables
+meteorológicas. Ver `core.emplazamiento.CLASIFICACIONES_EXCLUIDAS`.
 
-El CSV real `PLIA/convencionales/104098_2025-09-01_2026-07-31.csv` (335 días,
-estación SAN REGIS convencional) mostró la estructura real:
+## Qué se confirmó con datos reales (cambia el diseño original)
+
+Un CSV convencional real (estación 104098 SAN REGIS, 335 días) mostró la
+estructura real:
 
 ```
 Fecha,Hora,n_pt101,n_pt102,n_pt103,n_tm102,n_tm103,n_tm104,n_tm105,n_tm106,n_tm107,n_tm108,n_tm109
@@ -60,7 +61,7 @@ Fecha,Hora,n_pt101,n_pt102,n_pt103,n_tm102,n_tm103,n_tm104,n_tm105,n_tm106,n_tm1
   con `n_airtemp` (bulbo seco) de la automática — se excluyen de la equivalencia (no
   hay overlay significativo posible sin una conversión que este spec no cubre).
 - El código real usa **`n_maxath`/`n_minath`** (extremos horarios de la automática)
-  para comparar contra `n_tm102`/`n_tm103` en PLIA — pero como `emplazamiento` no calcula
+  para comparar contra `n_tm102`/`n_tm103` en estudios formales — pero como `emplazamiento` no calcula
   agregados propios (solo superpone lo que ya existe), usa directamente
   **`n_airtemp`** (la serie continua) como referencia visual — el usuario ve la
   línea completa y los puntos de máx/mín diaria encima, sin que el Analizador
@@ -111,7 +112,7 @@ con el usuario antes de implementar:
   comparar directo — no es una estadística agregada, es una resta punto a
   punto. Las "diaria" (máx/mín/total) siguen **sin** diferencia: calcularla
   exigiría que emplazamiento compartido compute su propio agregado diario de la automática,
-  y esa rigurosidad sigue siendo tarea exclusiva de PLIA (el límite de abajo
+  y esa rigurosidad queda fuera de esta herramienta (el límite de abajo
   sigue vigente para ese caso). Ver `core.emplazamiento.calcular_diferencias_puntuales`
   y `ui.charts.panel_diferencias_emplazamiento`.
 
@@ -137,7 +138,7 @@ verificados con datos reales:
     que la automática YA agrega por hora) a lo largo del día — **nunca**
     `n_airtemp` (corregido tras un error real de esta misma sesión: `n_airtemp`
     subestima picos intra-hora — verificado en 104114, 16.6°C de max(n_airtemp)
-    vs. 18.8°C real de max(n_maxath) el mismo día; ver tasks/todo.md).
+    vs. 18.8°C real de max(n_maxath) el mismo día).
   - Precipitación: suma de `n_lluvia` en la ventana 07h→07h (ver más abajo).
   Ver `core.emplazamiento.calcular_extremos_diarios_automatica` y
   `calcular_acumulado_diario_automatica`.
@@ -154,22 +155,19 @@ verificados con datos reales:
   de la automática en las ventanas 19:01→07:00 (nocturna) y 07:01→19:00
   (diurna) para comparar contra `n_pt102`/`n_pt103` — cálculo propio de
   emplazamiento compartido, marcado siempre como tal en el título del gráfico ("cálculo
-  propio de emplazamiento compartido, no la lógica de PLIA"). El filtro de CC ya aplicado en
-  el pipeline evita que outliers de sensor (se encontró uno real, -11162mm en
+  propio del Analizador"). El filtro de CC aplicado antes de sumar evita que outliers de sensor (se encontró uno real, -11162mm en
   `n_lluvia`) contaminen la suma. Ver `core.emplazamiento.calcular_ventaneo_automatica`.
 
 **4 gráficos resultantes** (antes eran 2): para cada variable física, un
 gráfico principal + uno secundario + sus 2 diferencias correspondientes — ver
 `ui.tab_emplazamiento.layout` (`g-emplazamiento-1/2/diff-1/diff-2`) y
 `ui.callbacks._figuras_emplazamiento_temperatura`/`_figuras_emplazamiento_precipitacion`.
-Detalle completo de la discusión y verificación en `tasks/todo.md`.
 
 ## Alcance — qué NO incluye (explícitamente fuera)
 
 - **Ninguna estadística de comparación rigurosa** (bias/MAE/RMSE, Kendall/
-  Pearson, KS, BIASS/POD/FAR, coeficiente de inconsistencia — la batería real
-  de `PLIA/comparacion_core.py`) — eso sigue siendo tarea exclusiva de PLIA,
-  herramienta separada por decisión explícita del usuario. Las excepciones
+  Pearson, KS, BIASS/POD/FAR, coeficiente de inconsistencia) — eso corresponde
+  a un estudio formal aparte, por decisión explícita del usuario. Las excepciones
   ya autorizadas (Ronda 2, arriba) son: (a) diferencia punto a punto
   automática-menos-convencional en el mismo instante exacto (horas
   sinópticas) — no es una estadística agregada; (b) usar extremos/acumulados
@@ -177,18 +175,17 @@ Detalle completo de la discusión y verificación en `tasks/todo.md`.
   `n_dayrain`) — no es que emplazamiento compartido los calcule; (c) el ventaneo 07h/19h de
   precipitación, que sí es un cálculo propio de emplazamiento compartido pero acotado a una
   suma simple con ventana fija, siempre marcado como tal. Ninguna de estas
-  reemplaza ni aproxima el rigor estadístico de PLIA.
+  reemplaza ni aproxima el rigor estadístico de un estudio formal.
 - **Ninguna firma automática de divergencia** (tipo AF-REP) — decidido en la sesión
   anterior, solo vista visual.
 - Sin humedad relativa, presión ni viento en la convencional (no confirmado que
   existan en los CSV reales — se agregaría después, si aparece un caso real).
 - Sin bulbo húmedo (`n_tm107/108/109`) — no comparable directamente con la
   automática.
-- Sin ventaneo de precipitación 07-19h/19-07h con desfase de día (la lógica cuidadosa
-  de `PLIA/comparacion_core.py`) — se muestran los acumulados de la convencional tal
-  cual vienen (`n_pt101`/`102`/`103`), sin recalcular nada.
-- No se usa el crosswalk de PLIA como fuente de pares (decisión explícita: separado).
-- Sin filtro de "solo OPERATIVA" en el dropdown de pares — se listan los 204, el
+- Los acumulados de la convencional se muestran tal cual vienen
+  (`n_pt101`/`102`/`103`), sin recalcular nada.
+- Sin estaciones hidrológicas (EHA/HLG/HLM, ver arriba).
+- Sin filtro de "solo OPERATIVA" en el dropdown de pares — se listan todos, el
   usuario filtra escribiendo en el buscador (mismo patrón ya usado en toda la app).
 
 ## Tech Stack
@@ -200,8 +197,8 @@ la sesión de investigación).
 ## Commands
 
 ```
-Test:  C:\Users\drd06\.conda\envs\analizador_series\python.exe -m pytest tests/ -v
-Correr app: python -m analizador_series.app  (puerto configurable, no usar 8053/8054)
+Test:  python -m pytest tests/ -v          (con el env analizador_series activo)
+Correr app: python -m analizador_series.app  (puerto 8054)
 ```
 
 ## Project Structure
@@ -246,14 +243,12 @@ pytest, `tests/core/test_emplazamiento.py`, mismo patrón que `test_control_cali
 ## Boundaries
 
 - **Always:** correr `pytest tests/` completo antes de dar una tarea por
-  terminada; no modificar `PLIA/` ni su crosswalk bajo ninguna circunstancia (es
-  de otro proyecto, con su propia gobernanza).
+  terminada.
 - **Ask first:** cambiar el umbral de 100m por defecto; agregar humedad/presión/
   viento a la equivalencia si aparece un CSV convencional real que las tenga.
-- **Never:** importar o depender de código de `SGR TEMPORALES/PLIA/`; calcular
-  agregados propios (máximos/mínimos/acumulados) que dupliquen lo que PLIA ya hace
-  con rigor — si hace falta esa rigurosidad, es señal de que la tarea pertenece a
-  PLIA, no a `emplazamiento`.
+- **Never:** calcular estadística de comparación agregada — si hace falta esa
+  rigurosidad, es señal de que la tarea pertenece a un estudio formal aparte, no a
+  `emplazamiento`.
 
 ## Success Criteria
 
@@ -270,11 +265,11 @@ pytest, `tests/core/test_emplazamiento.py`, mismo patrón que `test_control_cali
    nombre distinguibles en el hover/leyenda.
 5. Checkbox de CC (reusa `control_calidad`) filtra ambas series.
 6. 100% de los tests nuevos en verde + los 167 existentes siguen en verde.
-7. Ninguna estadística de comparación, ninguna dependencia de `PLIA/`, ninguna
-   escritura fuera de `Analizador-Series/` — verificable por inspección.
+7. Ninguna estadística de comparación agregada, ninguna escritura fuera de la
+   carpeta del proyecto — verificable por inspección.
 
 ## Open Questions
 
 Ninguna bloqueante — todas las asunciones de la ronda de Specify fueron confirmadas
-o corregidas con datos reales de PLIA antes de escribir este spec (ver "Qué se
-confirmó con datos reales" arriba).
+o corregidas con datos reales antes de escribir este spec (ver "Qué se confirmó con
+datos reales" arriba).

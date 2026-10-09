@@ -18,3 +18,7 @@ __pycache__/
 venv/
 .pytest_cache/
 .superpowers/brainstorm/
+
+# ── Notas internas de desarrollo (solo locales, no son parte de la herramienta) ──
+docs/ESTADO_MIGRACION_Y_PENDIENTES.md
+analizador_series/temporal_cobertura_historico.py

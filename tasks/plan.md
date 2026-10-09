@@ -9,8 +9,8 @@ falta consultarlo).
 Pestaña nueva "Emplazamiento compartido" que superpone, para un par de estaciones co-ubicadas
 (automática + convencional, <100m), la serie continua de la automática con los
 puntos discretos de la convencional — temperatura o precipitación, sin ninguna
-estadística de comparación (eso es PLIA, proyecto separado con su propio
-crosswalk y gobernanza). Es una vista de inspección visual rápida, no un estudio
+estadística de comparación (eso queda fuera del alcance de esta
+herramienta). Es una vista de inspección visual rápida, no un estudio
 de validación.
 
 ## Architecture Decisions
@@ -83,8 +83,8 @@ de validación.
       convencional distinguibles, cambiar variable (temperatura↔precipitación),
       cambiar periodo, activar/desactivar CC
 - [ ] Success Criteria 1-7 de `docs/SPEC-emplazamiento-compartido.md` verificados por
-      inspección (ninguna estadística de comparación, ninguna dependencia de
-      `PLIA/`, ninguna escritura fuera de `Analizador-Series/`)
+      inspección (ninguna estadística de comparación, ninguna escritura fuera
+      de la carpeta del proyecto)
 
 ## Risks and Mitigations
 

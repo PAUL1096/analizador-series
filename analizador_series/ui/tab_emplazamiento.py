@@ -1,7 +1,7 @@
 """
 Pestaña Emplazamiento compartido — overlay visual de una estación automática con su
 convencional co-ubicada (<100m), para inspección rápida (¿cuentan la misma
-historia?). Sin estadística de comparación (eso es PLIA, proyecto separado).
+historia?). Sin estadística de comparación (fuera del alcance de esta herramienta).
 Ver docs/SPEC-emplazamiento-compartido.md.
 
 Independiente del selector compartido (dd-codigos/dt-periodo arriba): el

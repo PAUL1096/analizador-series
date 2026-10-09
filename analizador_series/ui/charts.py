@@ -745,7 +745,7 @@ def overlay_multivar(df: pd.DataFrame, var1: str | None, var2: str | None,
 # ══════════════════════════════════════════════════════════════════════════════
 # Panel de diferencias (emplazamiento compartido) — solo para variables "puntual" (07h/13h/19h),
 # ver core.emplazamiento.calcular_diferencias_puntuales. Nunca para "diaria"
-# (máx/mín/total): eso exigiría calcular un agregado propio, tarea de PLIA.
+# (máx/mín/total): eso exigiría calcular un agregado propio (fuera de alcance).
 # ══════════════════════════════════════════════════════════════════════════════
 
 def panel_diferencias_emplazamiento(diferencias: list[dict], titulo: str = "") -> go.Figure:

@@ -3,10 +3,13 @@ REM Lanzador del Analizador de Series (copia standalone, env dedicado analizador
 REM %~dp0 = carpeta de este .bat = raiz del proyecto -> cwd correcto para `python -m`.
 cd /d "%~dp0"
 
-REM Python del env conda "analizador_series"; si no esta en la ruta por defecto
-REM (otra PC u otra instalacion de conda), usa el python activo en el PATH.
-set "PY=%USERPROFILE%\.conda\envs\analizador_series\python.exe"
-if not exist "%PY%" set "PY=python"
+REM Busca el Python del entorno conda "analizador_series" en las rutas habituales
+REM de Anaconda/Miniconda. Si no lo encuentra, usa el "python" del PATH (sirve si
+REM se ejecuta desde un Anaconda Prompt con "conda activate analizador_series").
+set "PY=python"
+for %%D in ("%USERPROFILE%\.conda\envs" "%USERPROFILE%\anaconda3\envs" "%USERPROFILE%\miniconda3\envs" "C:\ProgramData\anaconda3\envs" "C:\ProgramData\miniconda3\envs") do (
+    if exist "%%~D\analizador_series\python.exe" set "PY=%%~D\analizador_series\python.exe"
+)
 
 set PYTHONIOENCODING=utf-8
 
@@ -28,9 +31,6 @@ echo   Emplazamiento compartido (automatica vs convencional co-ubicada).
 echo.
 echo   Tu PC     : http://localhost:8054
 echo   Red local : http://%LOCAL_IP%:8054
-echo.
-echo   NOTA: puerto distinto al original (8053, repo SGO) para poder
-echo   correr ambas copias a la vez sin conflicto.
 echo.
 echo   Datos leidos de:  DATA\datos_meteo\
 echo.

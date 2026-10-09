@@ -3,7 +3,7 @@
 - **Fecha:** 2026-07-13
 - **Ámbito:** `analizador_series/` (Plotly Dash, puerto 8053)
 - **Estado:** diseño validado en brainstorming; pendiente revisión de este spec antes de escribir el plan.
-- **Entorno:** conda `miambiente` (`C:\Users\drd06\.conda\envs\miambiente\python.exe`).
+- **Entorno:** conda `analizador_series` (ver README).
 
 ---
 
@@ -64,7 +64,7 @@ marcas son pistas para que el analista mire y confirme; el tipo AF final lo pone
 
 **No-objetivos (explícitos):**
 
-- **Integración con la BD de incidentes** (leer `sgo.db`/`sgo_v3.db`, saltar de una alerta a su
+- **Integración con la BD de incidentes** (leer la base de incidentes, saltar de una alerta a su
   serie, marcar el AF confirmado): **Fase 2**, fuera de este spec.
 - **Reorganización de los archivos de datos por estación** (R7): track separado de infraestructura.
   No es bloqueante — `data_loader.cargar_estaciones()` ya fusiona y deduplica los CSV por estación.
@@ -280,7 +280,7 @@ td = 243.12 * g / (17.62 - g)   # °C, desde t (°C) y hr (%)
 1. Definición exacta de `n_humedad` vs `n_humedad_inst` (y demás `_inst`) contra el catálogo SIGMA (R5).
 2. Tabla de severidad concreta para ordenar el índice de triaje.
 3. Umbrales AF iniciales por variable (se afinan con datos reales; no bloquean el diseño).
-4. Confirmar que `dash-ag-grid` se instala limpio en `miambiente`.
+4. Confirmar que `dash-ag-grid` se instala limpio en el entorno.
 5. Confirmar cómo se rinde la mini-tendencia en `dash-ag-grid` community (cell renderer SVG propio;
    la sparkline nativa es Enterprise).
 6. Medir el coste de `ruptures` (AF-BIAS) en la carga del Panorama antes de decidir cacheo/perezoso.

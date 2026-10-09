@@ -4,8 +4,8 @@ Control de Calidad (CC) LOCAL del Analizador — capa de análisis propia de SGR
 No es el CC oficial de la SGD (Subdirección de Gestión de Datos): usa manuales
 técnicos SENAMHI (MT-DRD-001/002/003) como referencia NUMÉRICA para reglas propias
 de esta herramienta. El resultado nunca sale de esta máquina — no se sincroniza a
-sgo.db/sgo_v3.db, no se comparte con SGD, no se conecta al motor de alertas
-institucional (ver docs/SPEC-control-calidad.md, restricción explícita del usuario).
+ninguna base institucional, no se comparte con SGD, no se conecta a ningún
+sistema de alertas (ver docs/SPEC-control-calidad.md, restricción explícita del usuario).
 
 Banderines: BUENO (pasa todo) / DUDOSO (no pasa una regla blanda) / MALO (fuera de
 límite duro). Combinación por lectura: MALO > DUDOSO > BUENO (peor gana).

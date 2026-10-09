@@ -3,8 +3,8 @@ Refresca data_ref/estaciones.db con altitud, región natural (Costa/Sierra/Selva
 y coordenadas (latitud/longitud) por estación, a partir de un export
 "Georeferencias" de SIGMA.
 
-data_ref/estaciones.db es un snapshot extraído una vez de sgo.db (ver
-docs/ESTADO_MIGRACION_Y_PENDIENTES.md §"Fase A") y nunca tuvo coordenadas ni
+data_ref/estaciones.db es un snapshot del catálogo de estaciones y
+originalmente no tenía coordenadas ni
 altitud/región. Las reglas de control_calidad.py para estaciones convencionales
 (MT-DRD-003 §6.3.2, variación día a día por región+altitud) necesitan altitud/
 región; core/emplazamiento.py (docs/SPEC-emplazamiento-compartido.md) necesita latitud/longitud para

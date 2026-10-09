@@ -1,7 +1,7 @@
 """
 Emplazamiento compartido — pares co-ubicados automática↔convencional (<umbral_m) y equivalencia
 de variables físicas entre ambas, para la pestaña "Emplazamiento compartido" (inspección visual,
-sin estadística de comparación — eso es PLIA, proyecto separado. Ver
+sin estadística de comparación — fuera del alcance de esta herramienta. Ver
 docs/SPEC-emplazamiento-compartido.md).
 
 Sin caché en disco: 413×681 combinaciones es trivial (<1s), no amerita el
@@ -197,8 +197,8 @@ def calcular_diferencias_puntuales(
 
     Las "diaria" (máx/mín/total) NUNCA generan diferencia acá: eso exigiría
     que emplazamiento compartido calculara su propio agregado diario de la automática, y esa
-    rigurosidad es tarea de PLIA (límite explícito de docs/SPEC-emplazamiento-compartido.md,
-    confirmado con el usuario antes de agregar este panel — ver tasks/todo.md).
+    rigurosidad queda fuera de esta herramienta (límite explícito de
+    docs/SPEC-emplazamiento-compartido.md, confirmado con el usuario).
     """
     if df_conv.empty or serie_automatica.empty:
         return {}
@@ -387,7 +387,7 @@ def calcular_ventaneo_automatica(df_auto: pd.DataFrame) -> dict[str, pd.Series]:
     """
     {"diurna": serie, "nocturna": serie} — sumas de n_lluvia en las ventanas
     07h->19h y 19h->07h, para comparar contra n_pt103/n_pt102. Cálculo propio
-    de emplazamiento compartido (no la lógica rigurosa de PLIA/comparacion_core.py) —
+    del Analizador (no un estudio estadístico formal) —
     autorizado explícitamente por el usuario tras confirmar la física real
     del proceso de observación convencional (ver tasks/todo.md, Ronda 2).
     """

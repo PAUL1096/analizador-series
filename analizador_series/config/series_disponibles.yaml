@@ -69,9 +69,7 @@ n_airtemp:
   # NO llamar esto "(instantánea)" — verificado con datos reales (472FB328
   # CHALACO, 103068, 104114) que n_airtemp Y n_airtemp_inst llegan a la
   # MISMA cadencia horaria; no es una distinción de frecuencia. La guía
-  # heredada del proyecto SGO (Dashboard-para-monitoreo-de-la-operatividad/
-  # docs/sistemas/Analizador_Series_Guia.md §9) ya documentaba esto como
-  # abierto: "el significado preciso lo define el catálogo de variables —
+  # original de la herramienta ya documentaba esto como abierto: "el significado preciso lo define el catálogo de variables —
   # confirmar con el equipo que mantiene el catálogo SIGMA". Lo único que
   # se pudo re-derivar acá: en 3 de las 4 estaciones probadas, n_airtemp es
   # más "suave" (std de Δ paso-a-paso menor) que n_airtemp_inst — consistente
