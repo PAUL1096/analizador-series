@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from analizador_series.config import af_legible
 from analizador_series.core import deteccion_afectaciones
 
 
@@ -31,9 +32,7 @@ def resumen_fila(serie: pd.Series, variable: str,
                   rango_fisico: tuple | list | None = None,
                   incluir_bias: bool = False) -> dict:
     """Fila del índice para una variable que la estación SÍ mide."""
-    n_total = len(serie)
-    n_validos = int(pd.to_numeric(serie, errors="coerce").notna().sum())
-    pct_validos = round(n_validos / n_total * 100, 1) if n_total else 0.0
+    pct_validos = deteccion_afectaciones.pct_lecturas_esperadas(serie)
 
     firmas = deteccion_afectaciones.detectar_todas(
         serie, variable, rango_fisico=rango_fisico, incluir_bias=incluir_bias,
@@ -42,13 +41,16 @@ def resumen_fila(serie: pd.Series, variable: str,
         peor = min(firmas, key=lambda f: _RANK_SEVERIDAD.get(f["severidad"], 2))
         severidad = peor["severidad"]
         firma_txt = " · ".join(f["tipo"] for f in firmas)
+        firma_legible = " · ".join(af_legible(f["tipo"]) for f in firmas)
     else:
         severidad, firma_txt = "OK", "sin firma"
+        firma_legible = "Ninguna detectada"
 
     return {
         "severidad": severidad,
         "severidad_rank": _RANK_SEVERIDAD[severidad],
         "firma": firma_txt,
+        "firma_legible": firma_legible,
         "pct_validos": pct_validos,
         "cadencia": _texto_cadencia(deteccion_afectaciones.cadencia_inferida(serie)),
     }
@@ -60,6 +62,7 @@ def fila_no_medida() -> dict:
         "severidad": "N/D",
         "severidad_rank": _RANK_SEVERIDAD["N/D"],
         "firma": "variable no medida por esta estación",
+        "firma_legible": "La estación no mide esta variable",
         "pct_validos": None,
         "cadencia": "—",
     }

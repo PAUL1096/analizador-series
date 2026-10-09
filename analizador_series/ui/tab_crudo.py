@@ -25,23 +25,29 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 
 
-DISCLAIMER = (
-    "Un día se marca NO efectivo (banda gris) si se recibió menos del 75% de las lecturas "
-    "esperadas para esa variable, según su cadencia real — bajo ese umbral un promedio diario "
-    "no es representativo. Variables nativamente diarias (Tmax/Tmin, precipitación diaria "
-    "acumulada) se excluyen por defecto de este cálculo — actívalas con el switch de abajo. "
-    "\"Día\" se define acá como día calendario (medianoche a medianoche): es una simplificación "
-    "para exploración visual, pendiente de confirmar contra la convención meteorológica "
-    "institucional exacta. El chequeo de concordancia (tabla de abajo) no depende de esa "
-    "simplificación: compara cada valor diario nativo contra las 24h reales que le preceden. "
-    "El panel de día efectivo (derecha) es independiente del \"Periodo\" y los \"Flags a incluir\" "
-    "elegidos arriba: siempre muestra el histórico completo de la estación calculado sobre datos "
-    "correctos (C), precalculado y guardado — cambiar el periodo no lo recalcula. "
-    "Las variables marcadas \"(CC)\" en el selector de abajo tienen reglas de Control de Calidad "
-    "definidas (no todas las tienen todavía): sus puntos DUDOSO/MALO se resaltan en el "
-    "gráfico (naranja/rojo oscuro, pasar el mouse muestra qué regla lo objeta), y el toggle "
-    "\"Control de calidad (CC)\" de arriba filtra sobre ellas — es una capa aparte del flag de SIGMA."
-)
+MARCA_CC = "⚑"
+
+# Lo que antes era un solo párrafo largo, en viñetas y dentro de una sección
+# plegable: se conserva todo el contenido, pero no ocupa la pantalla.
+COMO_LEER = [
+    "Las series respetan el Periodo, la calificación de SIGMA y el control de calidad "
+    "elegidos arriba.",
+    "Panel «Días completos» (derecha): verde = llegó al menos el 75 % de las lecturas "
+    "esperadas para esa variable según su frecuencia; gris = menos que eso (un promedio "
+    "diario ya no sería representativo); blanco = sin datos.",
+    "Ese panel muestra siempre TODO el historial de la estación, solo con datos "
+    "Correctos (C) de SIGMA, sin importar el periodo elegido. Se calcula una vez y se "
+    "guarda.",
+    "«Día» se toma como día calendario (00 h a 00 h). Es una simplificación para "
+    "explorar; falta confirmarla contra la convención meteorológica institucional.",
+    "Las variables que ya vienen como valor diario (Tmáx/Tmín, precipitación diaria) "
+    "no entran en «días completos» salvo que actives la casilla de arriba.",
+    "«% coincidencia del valor diario» compara cada valor diario contra las 24 h de "
+    "datos horarios que lo preceden; no depende de la simplificación del día calendario.",
+    f"Las variables marcadas con {MARCA_CC} tienen reglas del control de calidad del "
+    "Analizador (no todas las tienen todavía). Sus valores Dudoso y Malo se resaltan en "
+    "naranja y rojo oscuro.",
+]
 
 
 def layout(estacion_opts: list[dict] | None = None, estacion_value: str | None = None) -> html.Div:
@@ -60,15 +66,25 @@ def layout(estacion_opts: list[dict] | None = None, estacion_value: str | None =
                     dbc.Col(
                         dbc.Checkbox(
                             id="chk-crudo-incluir-diarias",
-                            label="Incluir variables diarias nativas (Tmax/Tmin/precipitación diaria)",
+                            label="Incluir en «días completos» las variables que ya vienen como "
+                                  "valor diario (Tmáx/Tmín, precipitación diaria)",
                             value=False,
                         ),
                         md="auto", className="align-self-end",
                     ),
                 ], className="g-2 align-items-end"),
 
-                dbc.Alert(DISCLAIMER, id="div-crudo-disclaimer", color="light",
-                          className="small mt-3 mb-2"),
+                html.Div(
+                    "Series tal como llegan de SIGMA, una debajo de otra. A la derecha, qué días "
+                    "llegaron completos y un resumen por variable.",
+                    className="small text-muted mt-2",
+                ),
+                dbc.Accordion([
+                    dbc.AccordionItem(
+                        html.Ul([html.Li(t) for t in COMO_LEER], className="small mb-0"),
+                        title="¿Cómo leer esta pestaña?",
+                    ),
+                ], start_collapsed=True, flush=True, id="div-crudo-disclaimer", className="mt-2 mb-2"),
                 html.Div(id="div-crudo-mensaje", className="text-muted small mb-2"),
             ]),
             className="shadow-sm mb-3",
@@ -83,7 +99,13 @@ def layout(estacion_opts: list[dict] | None = None, estacion_value: str | None =
                         dcc.Checklist(
                             id="cl-crudo-variables", options=[], value=[],
                             inline=True, labelStyle={"margin-right": "14px"},
-                            className="small mb-2",
+                            className="small mb-1",
+                        ),
+                        html.Div(
+                            f"{MARCA_CC} = la variable tiene reglas del control de calidad del "
+                            "Analizador: sus valores Dudoso/Malo se resaltan en el gráfico (pasa el "
+                            "mouse para ver qué regla los objeta).",
+                            className="text-muted mb-2", style={"fontSize": "0.75rem"},
                         ),
                         dcc.Loading(dcc.Graph(id="g-crudo", config={"displaylogo": False})),
                     ]),
@@ -104,8 +126,7 @@ def layout(estacion_opts: list[dict] | None = None, estacion_value: str | None =
                 ),
                 dbc.Card(
                     dbc.CardBody([
-                        html.H6("Resumen por variable (sensor/instrumento)",
-                                className="text-muted mb-2"),
+                        html.H6("Resumen por variable", className="text-muted mb-2"),
                         html.Div(id="div-crudo-resumen"),
                     ]),
                     className="shadow-sm mb-3",

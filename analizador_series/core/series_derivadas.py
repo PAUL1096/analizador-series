@@ -13,7 +13,7 @@ import numpy as np
 from pathlib import Path
 from functools import lru_cache
 
-from analizador_series.config import SERIES_YAML
+from analizador_series.config import NOMBRES_YAML, SERIES_YAML
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -85,18 +85,53 @@ def _cargar_config() -> dict:
         return yaml.safe_load(f) or {}
 
 
+@lru_cache(maxsize=1)
+def _cargar_nombres() -> dict:
+    if not NOMBRES_YAML.exists():
+        return {}
+    with open(NOMBRES_YAML, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
 def info_variable(variable: str) -> dict:
     """
     Retorna el bloque de configuración para una variable.
-    Si no existe, retorna el bloque _default con display_name = nombre real.
+    Si no tiene bloque propio en series_disponibles.yaml, usa el bloque
+    _default con el nombre/unidad de nombres_variables.yaml; y si tampoco
+    está ahí, el propio código como nombre (último recurso).
     """
     cfg = _cargar_config()
     if variable in cfg:
         return cfg[variable]
     base = dict(cfg.get("_default", {}))
-    base["display_name"] = variable
-    base["unidad"] = ""
+    nombre = _cargar_nombres().get(variable) or {}
+    base["display_name"] = nombre.get("nombre") or variable
+    base["unidad"] = nombre.get("unidad") or ""
     return base
+
+
+def etiqueta_variable(variable: str, con_codigo: bool = False) -> str:
+    """
+    Nombre legible de una variable para mostrar en pantalla. Con
+    con_codigo=True agrega el código de SIGMA (útil en selectores, donde
+    quien conoce los códigos los busca así), salvo que el nombre ya lo traiga.
+    """
+    nombre = info_variable(variable).get("display_name") or variable
+    if con_codigo and variable not in nombre:
+        return f"{nombre} · {variable}"
+    return nombre
+
+
+def etiqueta_derivada(variable: str, id_serie: str) -> str:
+    """
+    Texto legible de una serie derivada para títulos y tablas, ej.
+    "Cambio absoluto en 1 h · Humedad relativa" en vez del id interno
+    (absdHR_1h). Si el id no está configurado, se devuelve tal cual.
+    """
+    spec = next((sp for sp in series_disponibles(variable) if sp.get("id") == id_serie), None)
+    if spec is None:
+        return id_serie
+    return f"{spec.get('label', id_serie)} · {etiqueta_variable(variable)}"
 
 
 def series_disponibles(variable: str) -> list[dict]:

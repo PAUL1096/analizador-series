@@ -1,0 +1,172 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Nombres legibles y unidades de variables que NO tienen bloque propio en
+# series_disponibles.yaml (ese archivo manda cuando una variable está en ambos).
+# Lo usa series_derivadas.info_variable() como respaldo, para que ninguna
+# pantalla muestre el código crudo (n_bateria, n_pt101, ...) como si fuera un
+# nombre.
+#
+# Fuentes, de más a menos fuerte:
+#   [catálogo]  Catálogo oficial de variables convencionales de SIGMA
+#               (variables-instrumento-convencionales.xlsx: instrumento,
+#               nombre y frecuencia). No trae unidades: las unidades de las
+#               convencionales son las habituales de cada instrumento.
+#   [datos]     Verificado con datos descargados (rango de valores y relación
+#               con su variable hermana), 2026-10-09.
+#   [patrón]    Mismo patrón de nombre que una variable hermana ya rotulada
+#               (ej. n_maxath = máx. horaria de n_airtemp ⇒ n_maxpresatmh =
+#               máx. horaria de n_presatm). Familia de sensor según el
+#               diccionario de sensores de SIGMA.
+#   Cuando el significado exacto no es seguro se muestra la familia física
+#   junto al código, ej. "Temperatura del aire (n_airtemp_10m)".
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Estaciones automáticas ───────────────────────────────────────────────────
+n_bateria:          { nombre: "Voltaje de batería",                unidad: "V" }      # [datos] 12,2–13,7
+n_temp_int_trans:   { nombre: "Temperatura interna del equipo",    unidad: "°C" }     # [patrón] parámetro operativo
+n_maxrhh:           { nombre: "Humedad relativa máxima horaria",   unidad: "%" }      # [datos] ≥ n_humedad en 100 %
+n_minrhh:           { nombre: "Humedad relativa mínima horaria",   unidad: "%" }      # [datos] ≤ n_humedad en 100 %
+n_pto_rocio:        { nombre: "Punto de rocío",                    unidad: "°C" }     # [patrón]
+n_pto_rocio_inst:   { nombre: "Punto de rocío (inst.)",            unidad: "°C" }     # [patrón]
+n_dayrain_2:        { nombre: "Precipitación diaria acumulada (sensor 2)", unidad: "mm" }   # [patrón]
+n_lluvia_2:         { nombre: "Precipitación (sensor 2)",          unidad: "mm" }     # [patrón]
+n_int_2_lluvia:     { nombre: "Intensidad de lluvia (sensor 2)",   unidad: "mm/h" }   # [patrón]
+n_rain_2_10m:       { nombre: "Precipitación 10 min (sensor 2)",   unidad: "mm" }     # [patrón]
+n_dirracha:         { nombre: "Dirección de la racha",             unidad: "°" }      # [patrón]
+n_dirracha_h:       { nombre: "Dirección de la racha horaria",     unidad: "°" }      # [patrón]
+n_rachah:           { nombre: "Racha máxima horaria",              unidad: "m/s" }    # [patrón]
+n_dirviento_inst:   { nombre: "Dirección del viento (inst.)",      unidad: "°" }      # [patrón]
+n_velviento_inst:   { nombre: "Velocidad del viento (inst.)",      unidad: "m/s" }    # [patrón]
+n_dirviento_02m:    { nombre: "Dirección del viento a 2 m",        unidad: "°" }      # [patrón]
+n_velviento_02m:    { nombre: "Velocidad del viento a 2 m",        unidad: "m/s" }    # [patrón]
+n_maxvelviento:     { nombre: "Velocidad del viento máxima",       unidad: "m/s" }    # [patrón]
+n_maxvelviento_h:   { nombre: "Velocidad del viento máxima horaria", unidad: "m/s" }  # [patrón]
+n_maxvelviento_d:   { nombre: "Velocidad del viento máxima diaria",  unidad: "m/s" }  # [patrón]
+n_maxvelviento_02m: { nombre: "Velocidad del viento máxima a 2 m", unidad: "m/s" }    # [patrón]
+n_maxdirviento:     { nombre: "Dirección del viento máximo",       unidad: "°" }      # [patrón]
+n_maxdirviento_h:   { nombre: "Dirección del viento máximo horario", unidad: "°" }    # [patrón]
+n_maxdirviento_d:   { nombre: "Dirección del viento máximo diario",  unidad: "°" }    # [patrón]
+n_maxdirviento_02m: { nombre: "Dirección del viento máximo a 2 m", unidad: "°" }      # [patrón]
+n_devstdh:          { nombre: "Desviación estándar horaria de la dirección del viento", unidad: "°" }  # [patrón] familia dirección
+n_maxpresatmh:      { nombre: "Presión atmosférica máxima horaria", unidad: "hPa" }   # [patrón]
+n_minpresatmh:      { nombre: "Presión atmosférica mínima horaria", unidad: "hPa" }   # [patrón]
+n_maxpresatmd:      { nombre: "Presión atmosférica máxima diaria",  unidad: "hPa" }   # [datos] máx. acumulado del día
+n_minpresatmd:      { nombre: "Presión atmosférica mínima diaria",  unidad: "hPa" }   # [patrón]
+n_radsolar:         { nombre: "Radiación solar",                   unidad: "W/m²" }   # [patrón]
+n_radsolar_inst:    { nombre: "Radiación solar (inst.)",           unidad: "W/m²" }   # [patrón]
+n_radsolarhr:       { nombre: "Radiación solar horaria",           unidad: "W/m²" }   # [patrón]
+n_radsolar_tot:     { nombre: "Radiación solar total",             unidad: "" }       # [patrón] unidad no confirmada
+n_radsolar_tot_net: { nombre: "Radiación neta total",              unidad: "" }       # [patrón] unidad no confirmada
+n_enersolar1h:      { nombre: "Energía solar en 1 hora",           unidad: "" }       # [patrón] unidad no confirmada
+n_enersol_acu1h:    { nombre: "Energía solar acumulada en 1 hora", unidad: "" }       # [patrón] unidad no confirmada
+n_enersolar24h:     { nombre: "Energía solar en 24 horas",         unidad: "" }       # [patrón] unidad no confirmada
+n_ind_uv:           { nombre: "Índice UV",                         unidad: "" }       # [patrón]
+n_rauv_a_inst:      { nombre: "Radiación UV-A (inst.)",            unidad: "" }       # [patrón]
+n_rauv_a_prom:      { nombre: "Radiación UV-A (promedio)",         unidad: "" }       # [patrón]
+n_rauv_be_inst:     { nombre: "Radiación UV-B eritemática (inst.)", unidad: "" }      # [patrón]
+n_rauv_be_prom:     { nombre: "Radiación UV-B eritemática (promedio)", unidad: "" }   # [patrón]
+n_hojahumed:        { nombre: "Humedad de la hoja",                unidad: "" }       # [patrón]
+n_suelohumed:       { nombre: "Humedad del suelo",                 unidad: "" }       # [patrón]
+n_soiltemp:         { nombre: "Temperatura del suelo",             unidad: "°C" }     # [patrón]
+n_soiltemp_inst:    { nombre: "Temperatura del suelo (inst.)",     unidad: "°C" }     # [patrón]
+n_evapo_horaria:    { nombre: "Evaporación horaria",               unidad: "mm" }     # [patrón]
+n_evapo_inst_h:     { nombre: "Evaporación (inst.) horaria",       unidad: "mm" }     # [patrón]
+n_maxevapoh:        { nombre: "Evaporación máxima horaria",        unidad: "mm" }     # [patrón]
+n_minevapoh:        { nombre: "Evaporación mínima horaria",        unidad: "mm" }     # [patrón]
+n_nivelmedio:       { nombre: "Nivel del agua medio",              unidad: "m" }      # [patrón]
+n_nivmedh:          { nombre: "Nivel del agua medio horario",      unidad: "m" }      # [patrón]
+n_nivelaguah:       { nombre: "Nivel del agua horario",            unidad: "m" }      # [patrón]
+n_maxnivel:         { nombre: "Nivel del agua máximo",             unidad: "m" }      # [patrón]
+n_minnivel:         { nombre: "Nivel del agua mínimo",             unidad: "m" }      # [patrón]
+n_maxnivelh:        { nombre: "Nivel del agua máximo horario",     unidad: "m" }      # [patrón]
+n_minnivelh:        { nombre: "Nivel del agua mínimo horario",     unidad: "m" }      # [patrón]
+n_nivel_inst_h:     { nombre: "Nivel del agua (inst.) horario",    unidad: "m" }      # [patrón]
+n_nivel_inst_radar: { nombre: "Nivel del agua (inst., radar)",     unidad: "m" }      # [patrón]
+n_cond:             { nombre: "Conductividad del agua",            unidad: "" }       # [patrón] calidad de agua
+n_cond_inst:        { nombre: "Conductividad del agua (inst.)",    unidad: "" }       # [patrón]
+n_oxigeno:          { nombre: "Oxígeno disuelto",                  unidad: "" }       # [patrón]
+n_phh:              { nombre: "pH del agua",                       unidad: "" }       # [patrón]
+n_turbh:            { nombre: "Turbidez del agua",                 unidad: "" }       # [patrón]
+n_wtemp:            { nombre: "Temperatura del agua",              unidad: "°C" }     # [patrón]
+
+# Familia conocida, significado exacto del sufijo no confirmado: se muestra el código.
+n_airtemp_00m:      { nombre: "Temperatura del aire (n_airtemp_00m)", unidad: "°C" }
+n_airtemp_10m:      { nombre: "Temperatura del aire (n_airtemp_10m)", unidad: "°C" }
+n_airtemp_20m:      { nombre: "Temperatura del aire (n_airtemp_20m)", unidad: "°C" }
+n_airtemp_30m:      { nombre: "Temperatura del aire (n_airtemp_30m)", unidad: "°C" }
+n_airtemp_40m:      { nombre: "Temperatura del aire (n_airtemp_40m)", unidad: "°C" }
+n_airtemp_50m:      { nombre: "Temperatura del aire (n_airtemp_50m)", unidad: "°C" }
+n_airtemp_60m:      { nombre: "Temperatura del aire (n_airtemp_60m)", unidad: "°C" }
+n_rain_00m:         { nombre: "Precipitación (n_rain_00m)",        unidad: "mm" }
+n_rain_20m:         { nombre: "Precipitación (n_rain_20m)",        unidad: "mm" }
+n_rain_30m:         { nombre: "Precipitación (n_rain_30m)",        unidad: "mm" }
+n_rain_40m:         { nombre: "Precipitación (n_rain_40m)",        unidad: "mm" }
+n_rain_50m:         { nombre: "Precipitación (n_rain_50m)",        unidad: "mm" }
+n_niv_inst_00:      { nombre: "Nivel del agua (n_niv_inst_00)",    unidad: "m" }
+n_niv_inst_10:      { nombre: "Nivel del agua (n_niv_inst_10)",    unidad: "m" }
+n_niv_inst_20:      { nombre: "Nivel del agua (n_niv_inst_20)",    unidad: "m" }
+n_niv_inst_30:      { nombre: "Nivel del agua (n_niv_inst_30)",    unidad: "m" }
+n_niv_inst_40:      { nombre: "Nivel del agua (n_niv_inst_40)",    unidad: "m" }
+n_niv_inst_50:      { nombre: "Nivel del agua (n_niv_inst_50)",    unidad: "m" }
+n_nivelagua_10m:    { nombre: "Nivel del agua (n_nivelagua_10m)",  unidad: "m" }
+n_rs003:            { nombre: "Sensor radiométrico (n_rs003)",     unidad: "" }
+n_rs004:            { nombre: "Sensor radiométrico (n_rs004)",     unidad: "" }
+n_rs005:            { nombre: "Sensor radiométrico (n_rs005)",     unidad: "" }
+n_rs006:            { nombre: "Sensor radiométrico (n_rs006)",     unidad: "" }
+n_rs007:            { nombre: "Sensor radiométrico (n_rs007)",     unidad: "" }
+n_rs008:            { nombre: "Sensor radiométrico (n_rs008)",     unidad: "" }
+n_rs009:            { nombre: "Sensor radiométrico (n_rs009)",     unidad: "" }
+n_rs010:            { nombre: "Sensor radiométrico (n_rs010)",     unidad: "" }
+n_rs011:            { nombre: "Sensor radiométrico (n_rs011)",     unidad: "" }
+n_rs012:            { nombre: "Sensor radiométrico (n_rs012)",     unidad: "" }
+n_rs013:            { nombre: "Sensor radiométrico (n_rs013)",     unidad: "" }
+n_tm014:            { nombre: "Sensor radiométrico (n_tm014)",     unidad: "" }
+n_pt003:            { nombre: "Sensor de nieve (n_pt003)",         unidad: "" }
+n_pt004:            { nombre: "Sensor de nieve (n_pt004)",         unidad: "" }
+n_pt005:            { nombre: "Sensor de nieve (n_pt005)",         unidad: "" }
+n_pt006:            { nombre: "Sensor de nieve (n_pt006)",         unidad: "" }
+n_temp_ir_superf_hielo:     { nombre: "Temperatura infrarroja de superficie de hielo", unidad: "°C" }
+n_temp_ir_superf_hielo_max: { nombre: "Temperatura infrarroja de superficie de hielo máxima", unidad: "°C" }
+n_temp_ir_superf_hielo_min: { nombre: "Temperatura infrarroja de superficie de hielo mínima", unidad: "°C" }
+n_temp_netrad_k:            { nombre: "Temperatura del radiómetro neto (n_temp_netrad_k)", unidad: "" }
+n_temp_termis_sensor_ir:    { nombre: "Temperatura del termistor del sensor IR", unidad: "°C" }
+n_volag_inst_h:     { nombre: "Reflectometría de suelo (n_volag_inst_h)", unidad: "" }
+n_volag_prom:       { nombre: "Reflectometría de suelo (n_volag_prom)",   unidad: "" }
+
+# ── Estaciones convencionales [catálogo] ─────────────────────────────────────
+n_tm102: { nombre: "Temperatura máxima diaria",                unidad: "°C" }
+n_tm103: { nombre: "Temperatura mínima diaria",                unidad: "°C" }
+n_tm104: { nombre: "Temperatura de bulbo seco a las 07 h",     unidad: "°C" }
+n_tm105: { nombre: "Temperatura de bulbo seco a las 13 h",     unidad: "°C" }
+n_tm106: { nombre: "Temperatura de bulbo seco a las 19 h",     unidad: "°C" }
+n_tm107: { nombre: "Temperatura de bulbo húmedo a las 07 h",   unidad: "°C" }
+n_tm108: { nombre: "Temperatura de bulbo húmedo a las 13 h",   unidad: "°C" }
+n_tm109: { nombre: "Temperatura de bulbo húmedo a las 19 h",   unidad: "°C" }
+n_tm128: { nombre: "Temperatura del agua de mar a las 07 h",   unidad: "°C" }
+n_tm130: { nombre: "Temperatura del agua de mar a las 13 h",   unidad: "°C" }
+n_tm132: { nombre: "Temperatura del agua de mar a las 18 h",   unidad: "°C" }
+n_pt101: { nombre: "Precipitación total diaria",               unidad: "mm" }
+n_pt102: { nombre: "Precipitación a las 07 h",                 unidad: "mm" }
+n_pt103: { nombre: "Precipitación a las 19 h",                 unidad: "mm" }
+n_ev103: { nombre: "Evaporación Piche a las 07 h",             unidad: "mm" }
+n_ev104: { nombre: "Evaporación Piche a las 19 h",             unidad: "mm" }
+n_ev109: { nombre: "Evaporación Piche total diaria",           unidad: "mm" }
+n_ev133: { nombre: "Evaporación de tanque a las 07 h",         unidad: "mm" }
+n_ev134: { nombre: "Evaporación de tanque a las 19 h",         unidad: "mm" }
+n_ev135: { nombre: "Evaporación de tanque total diaria",       unidad: "mm" }
+n_hs101: { nombre: "Horas de sol total diaria",                unidad: "h" }
+n_pa101: { nombre: "Presión atmosférica a las 07 h",           unidad: "hPa" }
+n_pa102: { nombre: "Presión atmosférica a las 13 h",           unidad: "hPa" }
+n_pa103: { nombre: "Presión atmosférica a las 19 h",           unidad: "hPa" }
+n_pa105: { nombre: "Presión atmosférica máxima diaria",        unidad: "hPa" }
+n_rs101: { nombre: "Radiación solar diaria",                   unidad: "" }
+n_vt102: { nombre: "Velocidad del viento a las 07 h",          unidad: "m/s" }
+n_vt104: { nombre: "Velocidad del viento a las 13 h",          unidad: "m/s" }
+n_vt106: { nombre: "Velocidad del viento a las 19 h",          unidad: "m/s" }
+n_vt107: { nombre: "Velocidad media diaria del viento",        unidad: "m/s" }
+n_vt108: { nombre: "Anemómetro diario",                        unidad: "" }
+n_ni101: { nombre: "Nivel del agua a las 06 h",                unidad: "m" }
+n_ni102: { nombre: "Nivel del agua a las 10 h",                unidad: "m" }
+n_ni103: { nombre: "Nivel del agua a las 14 h",                unidad: "m" }
+n_ni104: { nombre: "Nivel del agua a las 18 h",                unidad: "m" }
+n_ni105: { nombre: "Nivel del agua promedio diario",           unidad: "m" }
+n_qa101: { nombre: "Caudal diario",                            unidad: "m³/s" }

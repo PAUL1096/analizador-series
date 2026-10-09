@@ -9,7 +9,28 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from analizador_series.config import PALETA_ESTACIONES, COLOR_FLAG, COLOR_CC
+from analizador_series.config import PALETA_ESTACIONES, COLOR_FLAG, COLOR_CC, af_legible
+from analizador_series.core import deteccion_afectaciones, series_derivadas
+
+MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+
+def figura_vacia(mensaje: str, height: int = 320) -> go.Figure:
+    """Gráfico sin datos: solo un mensaje centrado que dice qué falta, sin
+    ejes de -1 a 6 que parecen un gráfico roto."""
+    fig = go.Figure()
+    fig.update_layout(template="plotly_white", height=height,
+                      xaxis=dict(visible=False), yaxis=dict(visible=False),
+                      margin=dict(l=20, r=20, t=20, b=20))
+    fig.add_annotation(text=mensaje, showarrow=False, font=dict(size=13, color="#6c757d"),
+                       xref="paper", yref="paper", x=0.5, y=0.5)
+    return fig
+
+
+def _con_unidad(texto: str, unidad: str) -> str:
+    """'Humedad relativa (%)', o solo el texto si no hay unidad (nunca '()')."""
+    return f"{texto} ({unidad})" if unidad else texto
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -48,6 +69,10 @@ def serie_temporal_apilada(
     percentiles_derivadas: { id_serie -> {p50, p95, p99, p99.5} } para overlay
                         de líneas horizontales en cada panel derivado
     """
+    if df_largo.empty or columna_cruda not in df_largo.columns or df_largo[columna_cruda].notna().sum() == 0:
+        return figura_vacia("Sin datos para esta variable en el periodo elegido. "
+                            "Revisa la estación, el periodo o los filtros de arriba.", height=420)
+
     n_paneles = 1 + len(derivadas)
     alturas = [0.45] + [0.55 / max(1, len(derivadas))] * len(derivadas) if derivadas else [1.0]
 
@@ -57,14 +82,26 @@ def serie_temporal_apilada(
         vertical_spacing=0.04,
         row_heights=alturas,
         subplot_titles=[
-            f"{info_var.get('display_name','')} ({info_var.get('unidad','')})"
+            _con_unidad(info_var.get('display_name', ''), info_var.get('unidad', ''))
         ] + [
-            f"{spec_id}" for spec_id in derivadas.keys()
+            _con_unidad(series_derivadas.etiqueta_derivada(columna_cruda, spec_id),
+                        info_var.get('unidad', ''))
+            for spec_id in derivadas.keys()
         ],
     )
 
     colores = color_por_codigo(df_largo["codigo"].tolist() if not df_largo.empty else [])
     nombres = nombres or {}
+
+    # Las marcas (M de SIGMA, Dudoso/Malo del control de calidad) aparecen una
+    # sola vez en la leyenda aunque haya varias estaciones.
+    _vistos: set[str] = set()
+
+    def _primera_vez(grupo: str) -> bool:
+        if grupo in _vistos:
+            return False
+        _vistos.add(grupo)
+        return True
 
     def _label_para(cod: str) -> str:
         return nombres.get(cod, cod)
@@ -79,11 +116,10 @@ def serie_temporal_apilada(
     for cod, grp in df_largo.groupby("codigo"):
         grp = grp.sort_values("datetime")
         color = colores.get(cod, "#1f77b4")
-        n_total   = len(grp)
-        n_validos = grp[columna_cruda].notna().sum() if columna_cruda in grp.columns else 0
-        pct_validos = (n_validos / n_total * 100) if n_total else 0
+        pct = (deteccion_afectaciones.pct_lecturas_esperadas(grp.set_index("datetime")[columna_cruda])
+               if columna_cruda in grp.columns else 0.0)
         nombre = _label_para(cod)
-        label = f"{nombre} ({pct_validos:.0f}% válidos)"
+        label = f"{nombre} ({pct:.0f}% de las lecturas esperadas)"
 
         # Solo puntos válidos para el plot — las derivadas siguen calculadas en
         # la grilla original.
@@ -113,11 +149,11 @@ def serie_temporal_apilada(
                     go.Scatter(
                         x=malos["datetime"], y=malos[columna_cruda],
                         mode="markers",
-                        name=f"{nombre} · M",
+                        name="Calificado Malo (M) en SIGMA",
                         marker=dict(color=COLOR_FLAG["M"], size=6, symbol="x"),
-                        legendgroup=cod, showlegend=False,
+                        legendgroup="flag_M", showlegend=_primera_vez("flag_M"),
                         hovertemplate=(
-                            f"<b>FLAG M · {nombre}</b><br>%{{x|%Y-%m-%d %H:%M}}<br>"
+                            f"<b>Calificado Malo (M) en SIGMA · {nombre}</b><br>%{{x|%Y-%m-%d %H:%M}}<br>"
                             "Valor: %{y:.2f}<extra></extra>"
                         ),
                     ),
@@ -137,13 +173,13 @@ def serie_temporal_apilada(
                         go.Scatter(
                             x=puntos_cc["datetime"], y=puntos_cc[columna_cruda],
                             mode="markers",
-                            name=f"{nombre} · CC {severidad}",
+                            name=f"{severidad.capitalize()} según el control de calidad",
                             marker=dict(color=COLOR_CC[severidad], size=7, symbol=simbolo,
                                         line=dict(width=1.2)),
-                            legendgroup=cod, showlegend=False,
+                            legendgroup=f"cc_{severidad}", showlegend=_primera_vez(f"cc_{severidad}"),
                             hovertemplate=(
-                                f"<b>CC {severidad} · {nombre}</b><br>%{{x|%Y-%m-%d %H:%M}}<br>"
-                                "Valor: %{y:.2f}<extra></extra>"
+                                f"<b>{severidad.capitalize()} según el control de calidad · {nombre}</b>"
+                                "<br>%{x|%Y-%m-%d %H:%M}<br>Valor: %{y:.2f}<extra></extra>"
                             ),
                         ),
                         row=1, col=1,
@@ -168,8 +204,8 @@ def serie_temporal_apilada(
                     marker=dict(color=color, size=2.5),
                     legendgroup=cod, showlegend=False,
                     hovertemplate=(
-                        f"<b>{nombre} · {sid}</b><br>%{{x|%Y-%m-%d %H:%M}}<br>"
-                        "Valor: %{y:.2f}<extra></extra>"
+                        f"<b>{nombre}</b><br>{series_derivadas.etiqueta_derivada(columna_cruda, sid)}"
+                        "<br>%{x|%Y-%m-%d %H:%M}<br>Valor: %{y:.2f}<extra></extra>"
                     ),
                 ),
                 row=idx, col=1,
@@ -183,7 +219,7 @@ def serie_temporal_apilada(
                     continue
                 fig.add_hline(
                     y=valor, line_dash="dash", line_color="#999",
-                    annotation_text=f"p{p_label}: {valor:.2f}",
+                    annotation_text=f"umbral p{p_label}: {valor:.2f}",
                     annotation_position="right",
                     row=idx, col=1,
                 )
@@ -195,10 +231,10 @@ def serie_temporal_apilada(
                     )
 
     fig.update_layout(
-        height=300 + 220 * max(1, n_paneles - 1),
-        margin=dict(l=60, r=40, t=60, b=40),
+        height=320 + 220 * max(1, n_paneles - 1),
+        margin=dict(l=60, r=120, t=110, b=40),
         hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0),
         template="plotly_white",
     )
     fig.update_xaxes(rangeslider_visible=False)
@@ -218,29 +254,30 @@ def histograma_con_percentiles(
     s = pd.to_numeric(serie, errors="coerce").dropna()
     fig = go.Figure()
     if s.empty:
-        fig.update_layout(title=titulo + "  (sin datos)", template="plotly_white")
-        return fig
+        return figura_vacia("Elige una variable y un indicador para ver su distribución.")
 
     fig.add_trace(go.Histogram(
         x=s, nbinsx=60, marker_color="#4682B4",
-        opacity=0.85, name="distribución",
+        opacity=0.85, name="Valores",
+        hovertemplate="Entre %{x}<br>%{y} valores<extra></extra>",
     ))
 
     if percentiles:
-        for p, v in percentiles.items():
-            if v is None or np.isnan(v):
-                continue
+        # Etiquetas alternadas arriba/abajo para que no se encimen cuando dos
+        # percentiles caen muy juntos (p50 y p95 suelen estar pegados).
+        for i, (p, v) in enumerate(sorted((p, v) for p, v in percentiles.items()
+                                          if v is not None and not np.isnan(v))):
             fig.add_vline(
                 x=v, line_dash="dash", line_color="#d62728",
-                annotation_text=f"p{p}: {v:.2f}",
-                annotation_position="top",
+                annotation_text=f"p{p:g}: {v:.2f}",
+                annotation_position="top right" if i % 2 == 0 else "bottom right",
+                annotation_font_size=10,
             )
 
-    xlabel = unidad if unidad else "valor"
     fig.update_layout(
         title=titulo,
-        xaxis_title=xlabel,
-        yaxis_title="frecuencia",
+        xaxis_title=_con_unidad("Valor del indicador", unidad),
+        yaxis_title="N.º de valores",
         template="plotly_white",
         margin=dict(l=50, r=30, t=50, b=40),
         height=320,
@@ -256,6 +293,8 @@ def boxplot_por_grupo(
     df_grupo_valor: pd.DataFrame,
     titulo: str = "",
     label_x: str = "",
+    label_y: str = "Valor",
+    nombre_grupo=None,
 ) -> go.Figure:
     """
     df_grupo_valor: columnas 'grupo' y 'valor', producto de
@@ -263,20 +302,19 @@ def boxplot_por_grupo(
     """
     fig = go.Figure()
     if df_grupo_valor.empty:
-        fig.update_layout(title=titulo + "  (sin datos)", template="plotly_white")
-        return fig
+        return figura_vacia("Sin valores del indicador para agrupar.")
 
     for g in sorted(df_grupo_valor["grupo"].unique()):
         vals = df_grupo_valor.loc[df_grupo_valor["grupo"] == g, "valor"]
         fig.add_trace(go.Box(
-            y=vals, name=str(g), boxpoints="outliers",
+            y=vals, name=nombre_grupo(g) if nombre_grupo else str(g), boxpoints="outliers",
             marker_color="#4682B4",
         ))
 
     fig.update_layout(
         title=titulo,
         xaxis_title=label_x,
-        yaxis_title="valor",
+        yaxis_title=label_y,
         showlegend=False,
         template="plotly_white",
         margin=dict(l=50, r=30, t=50, b=40),
@@ -296,8 +334,7 @@ def heatmap_eventos_mes_hora(eventos: pd.DataFrame, titulo: str = "") -> go.Figu
     """
     fig = go.Figure()
     if eventos.empty or "datetime" not in eventos.columns:
-        fig.update_layout(title=titulo + "  (sin eventos)", template="plotly_white")
-        return fig
+        return figura_vacia("Ningún valor del indicador supera el umbral elegido.", height=360)
 
     dt = pd.to_datetime(eventos["datetime"])
     tabla = (
@@ -314,14 +351,16 @@ def heatmap_eventos_mes_hora(eventos: pd.DataFrame, titulo: str = "") -> go.Figu
     fig.add_trace(go.Heatmap(
         z=tabla.values,
         x=[f"{h:02d}h" for h in tabla.columns],
-        y=[f"mes {m:02d}" for m in tabla.index],
+        y=[f"{MESES_CORTOS[m - 1]}" for m in tabla.index],
         colorscale="OrRd",
-        hovertemplate="%{y} · %{x}<br>eventos: %{z}<extra></extra>",
-        colorbar=dict(title="eventos"),
+        hovertemplate="%{y} · %{x}<br>%{z} eventos<extra></extra>",
+        colorbar=dict(title="N.º de<br>eventos"),
     ))
     fig.update_layout(
         title=titulo,
         template="plotly_white",
+        xaxis_title="Hora del día",
+        yaxis_title="Mes",
         margin=dict(l=70, r=30, t=50, b=40),
         height=360,
     )
@@ -367,7 +406,7 @@ def _resaltar_firma(fig: go.Figure, firma: dict, serie: pd.Series, row: int) -> 
         for x0, x1 in _tramos_contiguos(idx):
             fig.add_vrect(
                 x0=x0, x1=x1, fillcolor=color, opacity=1.0, line_width=0,
-                annotation_text=firma["tipo"], annotation_position="top left",
+                annotation_text=af_legible(firma["tipo"]), annotation_position="top left",
                 row=row, col=1,
             )
     else:
@@ -377,7 +416,7 @@ def _resaltar_firma(fig: go.Figure, firma: dict, serie: pd.Series, row: int) -> 
                 x=pd.DatetimeIndex(idx), y=y.values, mode="markers",
                 marker=dict(symbol="x", size=8,
                             color="#d62728" if firma.get("severidad") == "Alta" else "#e6a817"),
-                name=firma["tipo"], showlegend=False,
+                name=af_legible(firma["tipo"]), showlegend=False,
                 hovertemplate=(f"{firma['tipo']}<br>%{{x|%Y-%m-%d %H:%M}}<br>"
                                "%{y:.2f}<extra></extra>"),
             ),
@@ -394,12 +433,7 @@ def panel_alineado_panorama(paneles: list[tuple], nombres: dict | None = None,
     nombres = nombres or {}
     n = len(paneles)
     if n == 0:
-        fig = go.Figure()
-        fig.update_layout(
-            title="Marca filas del índice para verlas aquí",
-            template="plotly_white", height=180,
-        )
-        return fig
+        return figura_vacia("Marca filas de la tabla de arriba para verlas aquí.", height=160)
 
     fig = make_subplots(
         rows=n, cols=1, shared_xaxes=True, vertical_spacing=0.05,
@@ -506,19 +540,14 @@ def panel_crudo_multivariable(
     """
     n = len(paneles)
     if n == 0:
-        fig = go.Figure()
-        fig.update_layout(
-            title="Elige al menos una variable para graficar",
-            template="plotly_white", height=180,
-        )
-        return fig
+        return figura_vacia("Elige al menos una variable para graficar.", height=160)
 
     huecos = _huecos_grandes(paneles)
 
     fig = make_subplots(
         rows=n, cols=1, shared_xaxes=True, vertical_spacing=0.05,
         subplot_titles=[
-            f"{info.get('display_name', var)} ({info.get('unidad', '')})"
+            _con_unidad(info.get('display_name', var), info.get('unidad', ''))
             for var, _, info, _flags, _cc, _motivo in paneles
         ],
     )
@@ -612,12 +641,8 @@ def panel_dias_efectivos(
     """
     filas = {v: r["tabla"] for v, r in resultado_de.items() if r["aplica"] and not r["tabla"].empty}
     if not filas:
-        fig = go.Figure()
-        fig.update_layout(
-            title="Sin variables sub-diarias suficientes para calcular día efectivo",
-            template="plotly_white", height=150,
-        )
-        return fig
+        return figura_vacia("Esta estación no tiene variables con varias lecturas por día "
+                            "para evaluar días completos.", height=150)
 
     variables = list(filas)  # ya vienen en orden estable desde construir_tabla_dias_efectivos
     dias = pd.DatetimeIndex(sorted(set().union(*(set(t.index) for t in filas.values()))))
@@ -628,27 +653,32 @@ def panel_dias_efectivos(
     # ~5 MB y el navegador tardaba decenas de segundos en procesarlo. El
     # color ya comunica efectivo/no-efectivo; el hover solo ubica sensor+día.
     # El % exacto por variable (agregado) sigue disponible en la tabla-resumen.
-    z = []
+    z, estado = [], []
     for v in variables:
         tabla = filas[v].reindex(dias)
         z.append([
             None if pd.isna(efectivo) else (1.0 if efectivo else 0.0)
             for efectivo in tabla["efectivo"]
         ])
+        estado.append([
+            "sin datos" if pd.isna(efectivo) else
+            ("día completo (≥75 % de lecturas)" if efectivo else "día incompleto (<75 % de lecturas)")
+            for efectivo in tabla["efectivo"]
+        ])
 
     # "display_name · variable": dos sensores pueden compartir display_name
     # (ej. dos instrumentos de temperatura instantánea) — el eje Y es
     # categórico, así que etiquetas repetidas colapsarían esas filas.
-    nombres = [f"{info_por_var.get(v, {}).get('display_name', v)} · {v}" for v in variables]
+    nombres = [series_derivadas.etiqueta_variable(v, con_codigo=True) for v in variables]
     fig = go.Figure(go.Heatmap(
-        z=z, x=dias, y=nombres,
-        hovertemplate="<b>%{y}</b><br>%{x|%Y-%m-%d}<extra></extra>",
+        z=z, x=dias, y=nombres, customdata=estado,
+        hovertemplate="<b>%{y}</b><br>%{x|%Y-%m-%d}: %{customdata}<extra></extra>",
         colorscale=[[0, "#bdbdbd"], [1, "#2ca02c"]],
         zmin=0, zmax=1, showscale=False,
         xgap=0.5 if len(dias) < 400 else 0, ygap=2,
     ))
     fig.update_layout(
-        title="Día efectivo por sensor (gris = no efectivo, &lt;75% de lecturas esperadas)",
+        title="Días completos por variable",
         template="plotly_white",
         height=alto_cabecera + max(1, len(variables)) * alto_fila,
         margin=dict(l=160, r=20, t=50, b=30),
@@ -673,7 +703,11 @@ def overlay_multivar(df: pd.DataFrame, var1: str | None, var2: str | None,
     """
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     if df is None or df.empty or not var1 or var1 not in df.columns:
-        fig.update_layout(title=titulo or "Sin datos", template="plotly_white", height=440)
+        fig.update_layout(template="plotly_white", height=440,
+                          xaxis=dict(visible=False), yaxis=dict(visible=False))
+        fig.add_annotation(text=titulo or "Elige un chequeo o dos variables para ver el gráfico",
+                           showarrow=False, font=dict(size=14, color="#6c757d"),
+                           xref="paper", yref="paper", x=0.5, y=0.5)
         return fig
 
     info2 = info2 or {}
@@ -723,15 +757,15 @@ def overlay_multivar(df: pd.DataFrame, var1: str | None, var2: str | None,
             fig.add_trace(
                 go.Scatter(
                     x=idx_v, y=s1.reindex(idx_v).values, mode="markers",
-                    name="violación", marker=dict(color="#d62728", size=7, symbol="x"),
+                    name="No cumple la regla", marker=dict(color="#d62728", size=7, symbol="x"),
                     hovertemplate="violación<br>%{x|%Y-%m-%d %H:%M}<extra></extra>",
                 ),
                 secondary_y=False,
             )
 
-    fig.update_yaxes(title_text=f"{info1.get('display_name','')} ({unidad1})", secondary_y=False)
+    fig.update_yaxes(title_text=_con_unidad(info1.get('display_name', ''), unidad1), secondary_y=False)
     if usar_eje2:
-        fig.update_yaxes(title_text=f"{info2.get('display_name','')} ({unidad2})", secondary_y=True)
+        fig.update_yaxes(title_text=_con_unidad(info2.get('display_name', ''), unidad2), secondary_y=True)
     fig.update_layout(
         title=dict(text=titulo, font=dict(size=13), x=0.01, xanchor="left"),
         template="plotly_white", height=440,
@@ -754,6 +788,9 @@ def panel_diferencias_emplazamiento(diferencias: list[dict], titulo: str = "") -
     convencional menos automática, mismo color que el punto correspondiente
     en overlay_multivar para que el usuario los asocie a simple vista.
     """
+    if not any(not pd.to_numeric(d["serie"], errors="coerce").dropna().empty for d in diferencias):
+        return figura_vacia(f"{titulo}: sin lecturas coincidentes de ambas estaciones." if titulo
+                            else "Elige un par de estaciones.", height=200)
     fig = go.Figure()
     for d in diferencias:
         s = pd.to_numeric(d["serie"], errors="coerce").dropna()
@@ -788,6 +825,9 @@ def serie_puntos_diarios(series: list[dict], titulo: str = "", yaxis_title: str 
     diarios, sin conectar series de fuentes distintas con una línea que
     sugeriría continuidad falsa entre ellas).
     """
+    if not any(not pd.to_numeric(d["serie"], errors="coerce").dropna().empty for d in series):
+        return figura_vacia(f"{titulo}: sin datos en el periodo elegido." if titulo
+                            else "Elige un par de estaciones.", height=300)
     fig = go.Figure()
     for d in series:
         s = pd.to_numeric(d["serie"], errors="coerce").dropna()

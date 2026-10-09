@@ -18,6 +18,7 @@ import dash_bootstrap_components as dbc
 from dash import Input, Output, State, callback, no_update, dash_table, html, dcc
 
 from analizador_series.config import COLOR_FLAG
+from analizador_series.ui.layout import etiqueta_con_ayuda
 from analizador_series.core import (
     control_calidad, data_loader, series_derivadas, distribuciones, detector_eventos,
     deteccion_afectaciones, consistencia, panorama, dias_efectivos, emplazamiento,
@@ -133,7 +134,10 @@ def _opciones_variable(codigos):
     if df.empty:
         return [], None
     vars_disp = data_loader.variables_disponibles(df)
-    opts = [{"label": v, "value": v} for v in vars_disp]
+    opts = sorted(
+        ({"label": series_derivadas.etiqueta_variable(v, con_codigo=True), "value": v} for v in vars_disp),
+        key=lambda o: o["label"].lower(),
+    )
     # Sugerir humedad por defecto si existe (motivación principal del tool)
     preferidas = ["n_humedad", "n_humedad_inst", "n_humre", "n_humrel",
                   "n_airtemp", "n_temp"]
@@ -150,32 +154,70 @@ def _opciones_variable(codigos):
 MESES_PERIODO_DEFAULT = 6
 
 
-def _texto_cobertura(cobertura: dict[str, list[tuple]], fmin, fmax) -> str:
+def _titulo_dos_lineas(texto: str) -> str:
+    """'Indicador · Variable — detalle' -> indicador arriba y el resto en una
+    segunda línea más chica, para que no se corte en paneles angostos."""
+    if " · " not in texto:
+        return texto
+    primera, resto = texto.split(" · ", 1)
+    return f"{primera}<br><sup>{resto}</sup>"
+
+
+def _dias(tramos) -> int:
+    return sum((ff.normalize() - fi.normalize()).days + 1 for fi, ff in tramos)
+
+
+def _rango_txt(tramos) -> str:
+    return ", ".join(
+        f"{fi:%Y-%m-%d}" if fi.normalize() == ff.normalize() else f"{fi:%Y-%m-%d} → {ff:%Y-%m-%d}"
+        for fi, ff in tramos
+    )
+
+
+def _texto_cobertura(cobertura: dict[str, list[tuple]], con_datos: dict[str, list[tuple]],
+                     fmin, fmax) -> list:
     """
-    Texto de cobertura LOCAL (lo que ya descargamos a disco) para el mensaje
-    compartido — se etiqueta explícito para no confundirlo con la
-    disponibilidad real en la BD central de SIGMA, que puede tener más
-    historial o distinto. Con 1 sola estación (el caso típico al elegir en
-    el selector) muestra sus propios tramos y avisa si hay huecos de
-    DESCARGA entre ellos — no confundir con huecos de datos AF-GAP/AF-MISS,
-    que están DENTRO de un tramo ya descargado. Con varias estaciones
-    seleccionadas muestra el rango combinado (cada una puede cubrir menos).
-    Acompaña a _barra_cobertura(), que muestra lo mismo de forma visual —
-    el texto se conserva porque el hueco de descarga es información
-    operativa que conviene poder leer, no solo intuir de una barra.
+    Explicación en palabras de la barra de cobertura. Distingue dos cosas que
+    la barra pinta distinto y que se confundían:
+      - DESCARGADO: el periodo que se pidió a SIGMA (sale del nombre del CSV).
+      - CON DATOS: los días que de verdad traen al menos un valor medido.
+    Un CSV pedido para ene→sep puede traer solo jun y ago (caso real 114066).
+    Todo es lo que hay en esta PC, no la disponibilidad en SIGMA.
     """
-    etiqueta = "Descargado localmente (no es la disponibilidad en la BD central de SIGMA)"
     if len(cobertura) == 1:
-        [tramos] = cobertura.values()
-        rango = " y ".join(f"{fi:%Y-%m-%d}→{ff:%Y-%m-%d}" for fi, ff in tramos)
-        if len(tramos) > 1:
-            return f"{etiqueta}: {rango} ({len(tramos)} tramos — hay huecos de descarga entre ellos)."
-        return f"{etiqueta}: {rango}."
-    return f"{etiqueta}, rango combinado de {len(cobertura)} estaciones: {fmin:%Y-%m-%d} → {fmax:%Y-%m-%d}."
+        [(cod, tramos)] = cobertura.items()
+        datos = con_datos.get(cod, [])
+        dias_desc, dias_datos = _dias(tramos), _dias(datos)
+        lineas = [f"Periodo descargado en esta PC: {_rango_txt(tramos)}"
+                  + (" (hay huecos sin descargar entre tramos)." if len(tramos) > 1 else ".")]
+        if not datos:
+            lineas.append("Días con datos: ninguno — los archivos descargados no traen valores.")
+        elif dias_datos >= dias_desc:
+            lineas.append(f"Días con datos: todos ({dias_datos:,}).")
+        else:
+            lineas.append(
+                f"Días con datos: {dias_datos:,} de {dias_desc:,} descargados "
+                f"({dias_datos / dias_desc:.0%}) — {_rango_txt(datos)}."
+            )
+        return lineas
+
+    sin_datos = [c for c in cobertura if not con_datos.get(c)]
+    linea = (f"{len(cobertura)} estaciones: periodo descargado combinado "
+             f"{fmin:%Y-%m-%d} → {fmax:%Y-%m-%d}. Cada fila de la barra muestra qué días "
+             "trae cada una.")
+    if sin_datos:
+        linea += f" Sin ningún valor en lo descargado: {', '.join(sin_datos)}."
+    return [linea]
 
 
 MAX_ESTACIONES_BARRA_COBERTURA = 8
 ANCHO_ETIQUETA_FILA = "84px"  # ancho fijo de la columna de código, compartido con la fila de ticks
+
+# Colores de la barra de cobertura: verde = hay valores, gris medio = se
+# descargó pero vino vacío, gris muy claro (fondo) = no se descargó.
+COLOR_COB_DATOS = "#2ca02c"
+COLOR_COB_VACIO = "#adb5bd"
+COLOR_COB_FONDO = "#eef0f2"
 
 
 def _ticks_temporales(lo: pd.Timestamp, hi: pd.Timestamp, max_ticks: int = 6) -> list[tuple[pd.Timestamp, str]]:
@@ -199,13 +241,34 @@ def _ticks_temporales(lo: pd.Timestamp, hi: pd.Timestamp, max_ticks: int = 6) ->
     return [(m, f"{m:%b %Y}") for m in meses[::paso]]
 
 
-def _barra_cobertura(cobertura: dict[str, list[tuple]], fmin, fmax) -> html.Div | None:
+def _leyenda_cobertura() -> html.Div:
+    def item(color, texto, borde=False):
+        return html.Span([
+            html.Span(style={
+                "display": "inline-block", "width": "12px", "height": "8px",
+                "background": color, "marginRight": "4px", "verticalAlign": "middle",
+                "border": "1px solid #ced4da" if borde else "none", "borderRadius": "2px",
+            }),
+            texto,
+        ], style={"marginRight": "14px", "whiteSpace": "nowrap"})
+
+    return html.Div([
+        item(COLOR_COB_DATOS, "Con datos"),
+        item(COLOR_COB_VACIO, "Descargado, sin datos"),
+        item(COLOR_COB_FONDO, "No descargado", borde=True),
+        html.Span("La barra termina en la fecha de hoy.", style={"whiteSpace": "nowrap"}),
+    ], style={"fontSize": "0.72rem", "marginLeft": f"calc({ANCHO_ETIQUETA_FILA} + 8px)"},
+       className="text-muted")
+
+
+def _barra_cobertura(cobertura: dict[str, list[tuple]], con_datos: dict[str, list[tuple]],
+                     fmin, fmax) -> html.Div | None:
     """
-    Franja horizontal por estación: un segmento verde por tramo descargado,
-    hueco visible (gris) donde no hay CSV — refuerzo visual de lo que
-    _texto_cobertura ya dice en palabras. Escala compartida
-    [fmin, max(fmax, hoy)] para que un atraso de descarga (último dato
-    anterior a hoy) también se vea, no solo los huecos internos.
+    Franja horizontal por estación con tres capas superpuestas: fondo (no
+    descargado), gris medio por cada tramo DESCARGADO y verde por cada tramo
+    de días CON DATOS reales. Escala compartida [fmin, max(fmax, hoy)] para
+    que un atraso de descarga también se vea. Acompañada de una leyenda y de
+    _texto_cobertura, que dice lo mismo en palabras.
 
     Con más de MAX_ESTACIONES_BARRA_COBERTURA estaciones se omite (queda
     solo el texto) — una fila por estación deja de ser legible mucho antes
@@ -221,37 +284,29 @@ def _barra_cobertura(cobertura: dict[str, list[tuple]], fmin, fmax) -> html.Div 
     def pct(ts) -> float:
         return max(0.0, min(100.0, (ts - lo).total_seconds() / total_seg * 100))
 
+    def segmento(fi, ff, color, titulo):
+        # ff es un día completo: el segmento llega hasta el final de ese día.
+        ini, fin = pct(fi), pct(ff.normalize() + pd.Timedelta(days=1))
+        return html.Div(title=titulo, style={
+            "position": "absolute", "left": f"{ini:.3f}%", "top": 0, "bottom": 0,
+            "width": f"{max(fin - ini, 0.3):.3f}%", "background": color,
+        })
+
     filas = []
     for cod, tramos in cobertura.items():
-        segmentos, cursor = [], 0.0
-        for fi, ff in tramos:
-            ini_pct, fin_pct = pct(fi), pct(ff)
-            if ini_pct > cursor:
-                segmentos.append(html.Div(style={"width": f"{ini_pct - cursor:.3f}%"}))
-            segmentos.append(html.Div(
-                title=f"{fi:%Y-%m-%d} → {ff:%Y-%m-%d}",
-                style={"width": f"{max(fin_pct - ini_pct, 0.3):.3f}%",
-                       "background": COLOR_FLAG["C"], "height": "100%"},
-            ))
-            cursor = fin_pct
-        if cursor < 100:
-            segmentos.append(html.Div(style={"width": f"{100 - cursor:.3f}%"}))
-
-        marca_hoy = []
-        if fmax < hoy:
-            marca_hoy = [html.Div(title=f"Hoy ({hoy:%Y-%m-%d})", style={
-                "position": "absolute", "left": f"{pct(hoy):.3f}%", "top": 0,
-                "bottom": 0, "width": "2px", "background": "#495057",
-            })]
+        capas = [segmento(fi, ff, COLOR_COB_VACIO,
+                          f"Descargado: {fi:%Y-%m-%d} → {ff:%Y-%m-%d}") for fi, ff in tramos]
+        capas += [segmento(fi, ff, COLOR_COB_DATOS,
+                           f"Con datos: {fi:%Y-%m-%d} → {ff:%Y-%m-%d}") for fi, ff in con_datos.get(cod, [])]
 
         filas.append(html.Div([
             html.Span(cod, className="text-muted", style={
                 "width": ANCHO_ETIQUETA_FILA, "flex": "0 0 auto", "fontSize": "0.75rem",
                 "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap",
             }),
-            html.Div(segmentos + marca_hoy, style={
-                "display": "flex", "flex": "1 1 auto", "height": "10px",
-                "background": COLOR_FLAG["SD"], "borderRadius": "2px",
+            html.Div(capas, style={
+                "flex": "1 1 auto", "height": "10px", "background": COLOR_COB_FONDO,
+                "border": "1px solid #dee2e6", "borderRadius": "2px",
                 "overflow": "hidden", "position": "relative",
             }),
         ], style={"display": "flex", "alignItems": "center", "gap": "8px", "marginBottom": "3px"}))
@@ -270,7 +325,7 @@ def _barra_cobertura(cobertura: dict[str, list[tuple]], fmin, fmax) -> html.Div 
         ], style={"position": "relative", "flex": "1 1 auto", "height": "14px"}),
     ], style={"display": "flex", "gap": "8px"})
 
-    return html.Div(filas + [ticks], className="mt-1 mb-1")
+    return html.Div(filas + [ticks, _leyenda_cobertura()], className="mt-1 mb-1")
 
 
 @callback(
@@ -299,28 +354,34 @@ def actualizar_periodo_compartido(codigos):
     fmin = min(fi for fi, _ in todos_los_tramos)
     fmax = max(ff for _, ff in todos_los_tramos)
 
-    # Por defecto se pide solo un tramo reciente, no todo el histórico — con
-    # series de varios años, graficar todo de entrada es lo que hacía lenta
-    # la herramienta. min/max_date_allowed sí quedan en el rango completo:
-    # el usuario puede ampliar el periodo a mano cuando lo necesite.
-    inicio_default = fmax - pd.DateOffset(months=MESES_PERIODO_DEFAULT)
-    if inicio_default < fmin:
-        inicio_default = fmin
-
     df = data_loader.cargar_estaciones(codigos)
     vars_disp = data_loader.variables_disponibles(df)
 
+    con_datos = {cod: data_loader.tramos_con_datos(df, cod) for cod in codigos}
+
+    # Por defecto se pide solo un tramo reciente, no todo el histórico — con
+    # series de varios años, graficar todo de entrada es lo que hacía lenta
+    # la herramienta. Se ancla a los días CON DATOS (no al nombre del CSV),
+    # para no abrir en meses descargados pero vacíos. min/max_date_allowed sí
+    # quedan en el rango descargado completo: se puede ampliar a mano.
+    dias_datos = [t for tramos in con_datos.values() for t in tramos]
+    ini_ref = min(fi for fi, _ in dias_datos) if dias_datos else fmin
+    fin_default = max(ff for _, ff in dias_datos) if dias_datos else fmax
+    inicio_default = max(fin_default - pd.DateOffset(months=MESES_PERIODO_DEFAULT), ini_ref)
+
     resumen = (f"{len(codigos)} estación(es), {len(df):,} registros, {len(vars_disp)} variables. "
-               f"Mostrando los últimos {MESES_PERIODO_DEFAULT} meses por defecto — amplía el "
-               "periodo arriba si necesitas más.")
+               f"Al elegir estación se muestran los últimos {MESES_PERIODO_DEFAULT} meses "
+               "descargados — cambia el Periodo para ver más.")
 
     mensaje = html.Div([
-        _barra_cobertura(cobertura, fmin, fmax),
-        html.Div(_texto_cobertura(cobertura, fmin, fmax)),
+        html.Div("Datos disponibles en esta PC (lo descargado, no lo que existe en SIGMA):",
+                 className="fw-semibold", style={"fontSize": "0.8rem"}),
+        _barra_cobertura(cobertura, con_datos, fmin, fmax),
+        *[html.Div(linea) for linea in _texto_cobertura(cobertura, con_datos, fmin, fmax)],
         html.Div(resumen),
     ])
 
-    return (fmin.date(), fmax.date(), inicio_default.date(), fmax.date(), mensaje)
+    return (fmin.date(), fmax.date(), inicio_default.date(), fin_default.date(), mensaje)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -562,21 +623,23 @@ def actualizar_histograma(derivadas_data, sid_foco, percentil, variable):
     s = pd.to_numeric(df[sid_foco], errors="coerce").dropna()
     info_var = series_derivadas.info_variable(variable)
     unidad = info_var.get("unidad", "")
+    etiqueta = series_derivadas.etiqueta_derivada(variable, sid_foco)
 
     pcts = distribuciones.percentiles(s, [50, 95, 99, percentil])
     fig = charts.histograma_con_percentiles(
-        s, titulo=f"{sid_foco}  (n = {len(s):,})", percentiles=pcts, unidad=unidad,
+        s, titulo=_titulo_dos_lineas(f"{etiqueta} — {len(s):,} valores"), percentiles=pcts, unidad=unidad,
     )
 
     res = distribuciones.resumen(s)
+    u = f" {unidad}" if unidad else ""
     detalle = html.Div([
-        html.Div([html.Strong("n: "), f"{res['n_validos']:,}  "],),
-        html.Div([html.Strong("media: "), f"{res['media']:.2f}  ",
-                  html.Strong("std: "),   f"{res['std']:.2f}"]),
-        html.Div([html.Strong("p50: "),  f"{res['p50']:.2f}  ",
-                  html.Strong("p95: "),  f"{res['p95']:.2f}  ",
-                  html.Strong("p99: "),  f"{res['p99']:.2f}  ",
-                  html.Strong("p99.5: "), f"{res['p99_5']:.2f}"]),
+        html.Div([html.Strong("Valores: "), f"{res['n_validos']:,} · ",
+                  html.Strong("Promedio: "), f"{res['media']:.2f}{u} · ",
+                  html.Strong("Desviación estándar: "), f"{res['std']:.2f}{u}"]),
+        html.Div([html.Strong("Percentiles "),
+                  "(el valor bajo el cual queda ese % de los datos): ",
+                  f"50 %: {res['p50']:.2f} · 95 %: {res['p95']:.2f} · "
+                  f"99 %: {res['p99']:.2f} · 99,5 %: {res['p99_5']:.2f}"]),
     ])
     return fig, detalle
 
@@ -590,8 +653,9 @@ def actualizar_histograma(derivadas_data, sid_foco, percentil, variable):
     Input("store-derivadas", "data"),
     Input("dd-derivada-foco", "value"),
     Input("rb-boxplot-dim", "value"),
+    State("dd-variable", "value"),
 )
-def actualizar_boxplot(derivadas_data, sid_foco, dim):
+def actualizar_boxplot(derivadas_data, sid_foco, dim, variable):
     if not derivadas_data or not sid_foco or sid_foco not in derivadas_data:
         return charts.boxplot_por_grupo(pd.DataFrame())
 
@@ -602,8 +666,19 @@ def actualizar_boxplot(derivadas_data, sid_foco, dim):
     s = df.set_index("datetime")[sid_foco]
 
     df_grupo = distribuciones.boxplot_por(s, dim=dim)
-    label_x = {"mes": "mes", "hora": "hora del día", "anio": "año"}.get(dim, dim)
-    return charts.boxplot_por_grupo(df_grupo, titulo=f"{sid_foco} agrupado", label_x=label_x)
+    label_x = {"mes": "Mes", "hora": "Hora del día", "anio": "Año"}.get(dim, dim)
+    nombre_grupo = {
+        "mes": lambda g: charts.MESES_CORTOS[int(g) - 1],
+        "hora": lambda g: f"{int(g):02d} h",
+    }.get(dim)
+    unidad = series_derivadas.info_variable(variable).get("unidad", "") if variable else ""
+    return charts.boxplot_por_grupo(
+        df_grupo,
+        titulo=_titulo_dos_lineas(f"{series_derivadas.etiqueta_derivada(variable, sid_foco)} — por {label_x.lower()}"),
+        label_x=label_x,
+        label_y=f"Valor del indicador ({unidad})" if unidad else "Valor del indicador",
+        nombre_grupo=nombre_grupo,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -617,8 +692,9 @@ def actualizar_boxplot(derivadas_data, sid_foco, dim):
     Input("store-derivadas", "data"),
     Input("dd-derivada-foco", "value"),
     Input("sl-percentil", "value"),
+    State("dd-variable", "value"),
 )
-def actualizar_eventos(derivadas_data, sid_foco, percentil):
+def actualizar_eventos(derivadas_data, sid_foco, percentil, variable):
     if not derivadas_data or not sid_foco or sid_foco not in derivadas_data:
         return charts.heatmap_eventos_mes_hora(pd.DataFrame()), "", ""
 
@@ -635,7 +711,10 @@ def actualizar_eventos(derivadas_data, sid_foco, percentil):
                 html.Div("No se detectaron eventos.", className="text-muted"),
                 "")
 
-    fig = charts.heatmap_eventos_mes_hora(eventos, titulo=f"Eventos {sid_foco}")
+    etiqueta = series_derivadas.etiqueta_derivada(variable, sid_foco)
+    fig = charts.heatmap_eventos_mes_hora(
+        eventos, titulo=f"Veces que se superó el umbral p{percentil:g}<br><sup>{etiqueta}</sup>",
+    )
 
     # Patrones agregados (texto-resumen)
     pat_hora = detector_eventos.patron_recurrencia(eventos, dim="hora_del_dia")
@@ -643,24 +722,32 @@ def actualizar_eventos(derivadas_data, sid_foco, percentil):
     pat_cod  = detector_eventos.patron_recurrencia(eventos, dim="codigo")
 
     umbral = eventos["umbral_usado"].iloc[0]
-    txt_resumen = (f"{len(eventos):,} eventos · umbral p{percentil} = {umbral:.2f} · "
-                   f"top hora: {pat_hora.iloc[0]['grupo'] if not pat_hora.empty else '—'}h "
-                   f"({pat_hora.iloc[0]['pct'] if not pat_hora.empty else 0:.0f}%) · "
-                   f"top mes: {pat_mes.iloc[0]['grupo'] if not pat_mes.empty else '—'} · "
-                   f"top estación: {pat_cod.iloc[0]['grupo'] if not pat_cod.empty else '—'}")
+    partes = [f"{len(eventos):,} veces el indicador superó el umbral "
+              f"(percentil {percentil:g} = {umbral:.2f})."]
+    if not pat_hora.empty:
+        partes.append(f"Hora más frecuente: {int(pat_hora.iloc[0]['grupo']):02d} h "
+                      f"({pat_hora.iloc[0]['pct']:.0f} % de los eventos).")
+    if not pat_mes.empty:
+        partes.append(f"Mes más frecuente: {charts.MESES_CORTOS[int(pat_mes.iloc[0]['grupo']) - 1]}.")
+    if not pat_cod.empty and eventos["codigo"].nunique() > 1:
+        partes.append(f"Estación con más eventos: {pat_cod.iloc[0]['grupo']}.")
+    txt_resumen = " ".join(partes)
 
-    # Tabla de eventos (limitada a top 200 por |valor|)
+    # Tabla de eventos (limitada a los 200 de mayor magnitud)
     ev_show = (eventos.sort_values("abs_valor", ascending=False)
                        .head(200)
                        .copy())
     ev_show["datetime"] = ev_show["datetime"].dt.strftime("%Y-%m-%d %H:%M")
-    cols = ["datetime", "codigo", sid_foco, "abs_valor", "umbral_usado"]
+    ev_show[sid_foco] = pd.to_numeric(ev_show[sid_foco], errors="coerce").round(2)
+    cols = ["datetime", "codigo", sid_foco]
     cols = [c for c in cols if c in ev_show.columns]
     ev_show = ev_show[cols]
+    nombres_col = {"datetime": "Fecha y hora", "codigo": "Estación",
+                   sid_foco: f"Valor del indicador (umbral {umbral:.2f})"}
 
     tabla = dash_table.DataTable(
         data=ev_show.to_dict(orient="records"),
-        columns=[{"name": c, "id": c} for c in cols],
+        columns=[{"name": nombres_col.get(c, c), "id": c} for c in cols],
         page_size=20,
         sort_action="native",
         filter_action="native",
@@ -731,7 +818,8 @@ def actualizar_tabla_panorama(datos_crudos, incluir_bias):
     )
     n_alta = sum(1 for f in filas if f["severidad"] == "Alta")
     n_media = sum(1 for f in filas if f["severidad"] == "Media")
-    msg = f"{len(filas)} fila(s) · {n_alta} Alta · {n_media} Media"
+    msg = (f"{len(filas)} variable(s) revisada(s): {n_alta} con severidad alta, {n_media} media. "
+           "Marca filas con la casilla para verlas abajo.")
     if incluir_bias:
         msg += " · AF-BIAS incluido"
     return filas, msg
@@ -802,8 +890,11 @@ def poblar_estacion_comparar(codigos):
 def poblar_variables_libres_comparar(estacion):
     if not estacion:
         return [], []
-    opts = [{"label": v, "value": v}
-            for v in sorted(data_loader.variables_propias_estacion(estacion))]
+    opts = sorted(
+        ({"label": series_derivadas.etiqueta_variable(v, con_codigo=True), "value": v}
+         for v in data_loader.variables_propias_estacion(estacion)),
+        key=lambda o: o["label"].lower(),
+    )
     return opts, opts
 
 
@@ -817,8 +908,8 @@ def toggle_modo_comparar(preset_id):
         return {"display": "block"}, ""
     spec = consistencia.PRESETS.get(preset_id, {})
     return {"display": "none"}, dbc.Alert(
-        f"Preset «{spec.get('label', preset_id)}»: resuelve automáticamente las variables "
-        "según los candidatos configurados para esta estación.",
+        [html.Strong("Regla: "), spec.get("descripcion", ""),
+         " Las variables se eligen solas según lo que mide la estación."],
         color="light", className="small mb-0",
     )
 
@@ -846,7 +937,7 @@ def actualizar_comparar(preset_id, estacion, var1, var2, datos_crudos):
 
     if preset_id == "libre":
         if not var1 or not var2:
-            return vacio, "", "Modo libre: elige dos variables."
+            return vacio, "", "Elige las dos variables que quieres superponer."
         if var1 not in columnas or var2 not in columnas:
             return vacio, "", "Alguna variable elegida no está disponible en esta estación."
         info1, info2 = series_derivadas.info_variable(var1), series_derivadas.info_variable(var2)
@@ -856,8 +947,11 @@ def actualizar_comparar(preset_id, estacion, var1, var2, datos_crudos):
     faltan = consistencia.roles_faltantes(resueltas)
     spec = consistencia.PRESETS[preset_id]
     if faltan:
-        return vacio, "", (f"No se pudo resolver «{spec['label']}»: falta variable para "
-                            f"rol(es) {', '.join(faltan)} en esta estación.")
+        nombres_rol = {"t": "temperatura del aire", "hr": "humedad relativa", "lluvia": "precipitación",
+                       "direccion": "dirección del viento", "velocidad": "velocidad del viento",
+                       "tmax": "temperatura máxima diaria", "tmin": "temperatura mínima diaria"}
+        return vacio, "", (f"No se puede hacer «{spec['label']}» en esta estación: no mide "
+                            f"{', '.join(nombres_rol.get(r, r) for r in faltan)}.")
 
     series = {rol: grp[col] for rol, col in resueltas.items()}
     resultado = consistencia.ejecutar_preset(preset_id, series)
@@ -871,7 +965,7 @@ def actualizar_comparar(preset_id, estacion, var1, var2, datos_crudos):
         fig = charts.overlay_multivar(
             grp, resueltas["t"], None, info1, {},
             violacion=resultado.get("violacion"),
-            extra_series=[{"nombre": "T-rocío (calc.)", "serie": td, "eje": "y1", "dash": "dash"}],
+            extra_series=[{"nombre": "Punto de rocío (calculado)", "serie": td, "eje": "y1", "dash": "dash"}],
         )
     elif preset_id == "tmax_tmin":
         col1, col2 = resueltas["t"], resueltas["tmax"]
@@ -880,7 +974,8 @@ def actualizar_comparar(preset_id, estacion, var1, var2, datos_crudos):
         # -> info_variable cae a _default (unidad=""); forzar para no abrir un
         # eje secundario innecesario.
         info2 = {**series_derivadas.info_variable(col2), "unidad": info1.get("unidad", "")}
-        extra = [{"nombre": "Tmin diaria", "serie": series["tmin"], "eje": "y1", "dash": "dot"}]
+        extra = [{"nombre": series_derivadas.etiqueta_variable(resueltas["tmin"]),
+                  "serie": series["tmin"], "eje": "y1", "dash": "dot"}]
         fig = charts.overlay_multivar(grp, col1, col2, info1, info2,
                                        violacion=resultado.get("violacion"), extra_series=extra)
     else:
@@ -968,10 +1063,48 @@ def actualizar_periodo_emplazamiento(par_value):
 
     fmin = min(fi for fi, _ in tramos)
     fmax = max(ff for _, ff in tramos)
-    inicio_default = fmax - pd.DateOffset(months=MESES_PERIODO_DEFAULT)
-    if inicio_default < fmin:
-        inicio_default = fmin
-    return fmin, fmax, inicio_default, fmax
+
+    # Periodo por defecto anclado a los días CON DATOS (no al nombre del CSV),
+    # preferentemente donde coinciden ambas estaciones — un CSV convencional
+    # pedido para ene→sep puede traer solo jun y ago (caso real 114066).
+    df = data_loader.cargar_estaciones([cod_auto, cod_conv])
+    fin_por_estacion = [tr[-1][1] for tr in (data_loader.tramos_con_datos(df, c) for c in (cod_auto, cod_conv)) if tr]
+    fin_default = min(fin_por_estacion) if fin_por_estacion else fmax
+    inicio_default = max(fin_default - pd.DateOffset(months=MESES_PERIODO_DEFAULT), fmin)
+    return fmin, fmax, inicio_default, fin_default
+
+
+@callback(
+    Output("div-emplazamiento-cobertura", "children"),
+    Input("dd-emplazamiento-par", "value"),
+)
+def actualizar_cobertura_emplazamiento(par_value):
+    """Misma barra de cobertura que la cabecera, para las dos estaciones del
+    par: deja ver de un vistazo si la convencional tiene datos solo en parte
+    del periodo descargado."""
+    cod_auto, cod_conv = _dividir_par_emplazamiento(par_value)
+    if not cod_auto:
+        return ""
+    cobertura = {c: data_loader.tramos_descargados(c) for c in (cod_auto, cod_conv)}
+    tramos = [t for tr in cobertura.values() for t in tr]
+    if not tramos:
+        return ""
+    df = data_loader.cargar_estaciones([cod_auto, cod_conv])
+    con_datos = {c: data_loader.tramos_con_datos(df, c) for c in (cod_auto, cod_conv)}
+    fmin, fmax = min(fi for fi, _ in tramos), max(ff for _, ff in tramos)
+    lineas = []
+    for c, etiqueta in ((cod_auto, "Automática"), (cod_conv, "Convencional")):
+        if not cobertura[c]:
+            lineas.append(f"{etiqueta} {c}: sin archivos descargados.")
+            continue
+        texto = _texto_cobertura({c: cobertura[c]}, con_datos, fmin, fmax)[1]
+        lineas.append(f"{etiqueta} {c} — {texto[0].lower()}{texto[1:]}")
+    return html.Div([
+        html.Div("Datos disponibles en esta PC para el par:", className="fw-semibold",
+                 style={"fontSize": "0.8rem"}),
+        _barra_cobertura(cobertura, con_datos, fmin, fmax),
+        *[html.Div(l) for l in lineas],
+    ], className="text-muted small")
 
 
 _COLOR_EXTREMO_MAXIMA = "#1f77b4"
@@ -979,6 +1112,14 @@ _COLOR_EXTREMO_MINIMA = "#ff7f0e"
 _COLOR_VENTANA_NOCTURNA = "#1f77b4"
 _COLOR_VENTANA_DIURNA = "#ff7f0e"
 _NOTA_CALCULADO = " (calculada)"
+_TILDE = {"maxima": "máxima", "minima": "mínima"}
+
+
+def _de_convencional(series_extra: list[dict]) -> list[dict]:
+    """Copia de las series de la convencional con su origen en el nombre de la
+    leyenda ('07h' -> 'Convencional · 07h'): en un mismo gráfico conviven
+    series de ambas estaciones y sin esto no se sabe cuál es cuál."""
+    return [{**e, "nombre": f"Convencional · {e['nombre']}"} for e in series_extra]
 
 
 def _figuras_emplazamiento_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
@@ -986,7 +1127,7 @@ def _figuras_emplazamiento_temperatura(cod_auto, cod_conv, df_auto, df_conv, vac
     titulo_par = _titulo_par_emplazamiento(cod_auto, cod_conv, nombres)
     metadata = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["convencional"]
     var_auto = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["automatica"]
-    extra_todas = emplazamiento.armar_extra_series_convencional(df_conv, "temperatura")
+    extra_todas = _de_convencional(emplazamiento.armar_extra_series_convencional(df_conv, "temperatura"))
     colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
 
     # Gráfico 1: horaria continua + horas sinópticas (07h/13h/19h)
@@ -996,9 +1137,10 @@ def _figuras_emplazamiento_temperatura(cod_auto, cod_conv, df_auto, df_conv, vac
     else:
         extra_puntual = [e for e in extra_todas if e["tipo"] == "puntual"]
         info_auto = series_derivadas.info_variable(var_auto)
+        info_auto = {**info_auto, "display_name": f"Automática · {info_auto.get('display_name', var_auto)}"}
         fig1 = charts.overlay_multivar(
             df_auto, var_auto, None, info_auto, {}, extra_series=extra_puntual,
-            titulo=f"{titulo_par} · Horaria",
+            titulo=f"{titulo_par} · Serie horaria y lecturas de la convencional (07, 13 y 19 h)",
         )
         if df_conv.empty:
             mensajes.append(f"{cod_conv} no tiene datos descargados en este periodo.")
@@ -1015,39 +1157,42 @@ def _figuras_emplazamiento_temperatura(cod_auto, cod_conv, df_auto, df_conv, vac
         if meta["tipo"] == "diaria" and not (col in df_conv.columns and df_conv[col].notna().any()):
             mensajes.append(f"{cod_conv} no tiene {meta['etiqueta'].lower()} disponible.")
     for clave, etiqueta, color in (
-        ("maxima", "Máxima (auto)", _COLOR_EXTREMO_MAXIMA),
-        ("minima", "Mínima (auto)", _COLOR_EXTREMO_MINIMA),
+        ("maxima", "Automática · Máxima diaria", _COLOR_EXTREMO_MAXIMA),
+        ("minima", "Automática · Mínima diaria", _COLOR_EXTREMO_MINIMA),
     ):
         fuente = extremos.get(clave)
         if fuente is None:
             col_real = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_diarios"][clave]
             col_horario = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_horarios_agregados"][clave]
-            mensajes.append(f"{cod_auto} no tiene {etiqueta.split(' ')[0].lower()} diaria disponible "
+            mensajes.append(f"{cod_auto} no tiene temperatura {_TILDE[clave]} diaria disponible "
                              f"(ni {col_real} ni {col_horario}).")
             continue
         nombre = etiqueta + (_NOTA_CALCULADO if fuente["calculado"] else "")
         puntos2.append({"nombre": nombre, "serie": fuente["serie"], "color": color, "symbol": "diamond"})
         if fuente["calculado"]:
-            mensajes.append(f"Nota: {nombre}.")
+            mensajes.append(f"{cod_auto} no reporta la temperatura {_TILDE[clave]} diaria: se calculó "
+                            f"a partir de sus {_TILDE[clave]}s horarias (rotulada «calculada»).")
     fig2 = charts.serie_puntos_diarios(
-        puntos2, titulo=f"{titulo_par} · Máx/mín diaria", yaxis_title="Temperatura (°C)",
+        puntos2, titulo=f"{titulo_par} · Máxima y mínima diarias", yaxis_title="Temperatura (°C)",
     )
 
     # Diferencias (convencional − automática)
     serie_auto_cont = df_auto[var_auto] if var_auto in df_auto.columns else pd.Series(dtype=float)
     dif_puntual = emplazamiento.calcular_diferencias_puntuales(serie_auto_cont, df_conv, "temperatura")
     lista_diff1 = [
-        {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
+        {"nombre": f"A las {metadata[col]['etiqueta']}", "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
         for col, s in dif_puntual.items() if not s.empty
     ]
-    fig_diff1 = charts.panel_diferencias_emplazamiento(lista_diff1, titulo="Dif. horas sinópticas (conv.−auto.)")
+    fig_diff1 = charts.panel_diferencias_emplazamiento(
+        lista_diff1, titulo="Diferencia convencional − automática en las horas de lectura (07, 13 y 19 h)")
 
     dif_diaria = emplazamiento.calcular_diferencias_diarias_temperatura(df_auto, df_conv)
     lista_diff2 = [
         {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
         for col, s in dif_diaria.items() if not s.empty
     ]
-    fig_diff2 = charts.panel_diferencias_emplazamiento(lista_diff2, titulo="Dif. máx/mín diaria (conv.−auto.)")
+    fig_diff2 = charts.panel_diferencias_emplazamiento(
+        lista_diff2, titulo="Diferencia convencional − automática en máxima y mínima diarias")
 
     return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
 
@@ -1056,7 +1201,7 @@ def _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, v
     mensajes = []
     titulo_par = _titulo_par_emplazamiento(cod_auto, cod_conv, nombres)
     metadata = emplazamiento.EQUIVALENCIA_VARIABLES["precipitacion"]["convencional"]
-    extra_todas = emplazamiento.armar_extra_series_convencional(df_conv, "precipitacion")
+    extra_todas = _de_convencional(emplazamiento.armar_extra_series_convencional(df_conv, "precipitacion"))
     colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
 
     # Gráfico 1: acumulado diario — n_pt101 realineado +1 día (ver
@@ -1075,15 +1220,17 @@ def _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, v
         mensajes.append(f"{cod_conv} no tiene {metadata['n_pt101']['etiqueta'].lower()} disponible.")
     acumulado = emplazamiento.calcular_acumulado_diario_automatica(df_auto)
     if acumulado is not None:
-        nombre = "Acumulado diario (auto)" + (_NOTA_CALCULADO if acumulado["calculado"] else "")
+        nombre = "Automática · Acumulado diario" + (_NOTA_CALCULADO if acumulado["calculado"] else "")
         puntos1.append({"nombre": nombre, "serie": acumulado["serie"], "color": _COLOR_EXTREMO_MAXIMA,
                          "symbol": "diamond"})
         if acumulado["calculado"]:
-            mensajes.append(f"Nota: {nombre}.")
+            mensajes.append(f"{cod_auto} no reporta el acumulado diario: se calculó sumando su "
+                            "precipitación de 07 h a 07 h (rotulado «calculada»).")
     else:
         mensajes.append(f"{cod_auto} no tiene acumulado diario disponible (ni n_dayrain ni n_lluvia).")
     fig1 = charts.serie_puntos_diarios(
-        puntos1, titulo=f"{titulo_par} · Acumulado diario", yaxis_title="Precipitación (mm)",
+        puntos1, titulo=f"{titulo_par} · Precipitación acumulada del día (07 h a 07 h)",
+        yaxis_title="Precipitación (mm)",
     )
 
     # Gráfico 2: ventaneo 07h/19h — cálculo propio de emplazamiento compartido (autorizado
@@ -1095,8 +1242,8 @@ def _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, v
         if meta["tipo"] == "puntual" and col not in columnas_puntual_presentes:
             mensajes.append(f"{cod_conv} no tiene {meta['etiqueta'].lower()} disponible.")
     for clave, etiqueta, color in (
-        ("nocturna", "Nocturna 19h→07h (auto, calculado)", _COLOR_VENTANA_NOCTURNA),
-        ("diurna", "Diurna 07h→19h (auto, calculado)", _COLOR_VENTANA_DIURNA),
+        ("nocturna", "Automática · Noche 19 h→07 h (calculada)", _COLOR_VENTANA_NOCTURNA),
+        ("diurna", "Automática · Día 07 h→19 h (calculada)", _COLOR_VENTANA_DIURNA),
     ):
         serie = ventaneo.get(clave)
         if serie is None or serie.empty:
@@ -1104,23 +1251,26 @@ def _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, v
             continue
         puntos2.append({"nombre": etiqueta, "serie": serie, "color": color, "symbol": "diamond"})
     fig2 = charts.serie_puntos_diarios(
-        puntos2, titulo=f"{titulo_par} · Ventaneo 07h/19h", yaxis_title="Precipitación (mm)",
+        puntos2, titulo=f"{titulo_par} · Precipitación por turno de lectura (noche y día)",
+        yaxis_title="Precipitación (mm)",
     )
 
     # Diferencias (convencional − automática)
     dif_diaria = emplazamiento.calcular_diferencias_precipitacion_diaria(df_auto, df_conv)
     lista_diff1 = []
     if dif_diaria is not None and not dif_diaria.empty:
-        lista_diff1.append({"nombre": "Total diaria", "serie": dif_diaria,
+        lista_diff1.append({"nombre": "Acumulado del día", "serie": dif_diaria,
                              "color": colores_por_columna.get("n_pt101", "#2ca02c")})
-    fig_diff1 = charts.panel_diferencias_emplazamiento(lista_diff1, titulo="Dif. acumulado diario (conv.−auto.)")
+    fig_diff1 = charts.panel_diferencias_emplazamiento(
+        lista_diff1, titulo="Diferencia convencional − automática en el acumulado del día")
 
     dif_ventaneo = emplazamiento.calcular_diferencias_precipitacion_ventaneo(df_auto, df_conv)
     lista_diff2 = [
         {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
         for col, s in dif_ventaneo.items() if not s.empty
     ]
-    fig_diff2 = charts.panel_diferencias_emplazamiento(lista_diff2, titulo="Dif. ventaneo 07h/19h (conv.−auto.)")
+    fig_diff2 = charts.panel_diferencias_emplazamiento(
+        lista_diff2, titulo="Diferencia convencional − automática por turno de lectura")
 
     return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
 
@@ -1138,7 +1288,7 @@ def _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, v
     Input("cl-cc-emplazamiento", "value"),
 )
 def actualizar_emplazamiento(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_incluidos):
-    vacio = charts.overlay_multivar(pd.DataFrame(), None, None, {}, {})
+    vacio = charts.figura_vacia("Elige un par de estaciones arriba.", height=350)
     vacio_diff = charts.panel_diferencias_emplazamiento([])
     cod_auto, cod_conv = _dividir_par_emplazamiento(par_value)
     if not cod_auto:
@@ -1204,8 +1354,8 @@ def poblar_variables_crudo(estacion):
     categoria = meta.iloc[0]["categoria"] if not meta.empty else ""
     opts = [
         {
-            "label": series_derivadas.info_variable(v).get("display_name", v)
-            + (" (CC)" if control_calidad.tiene_regla_cc(v, categoria) else ""),
+            "label": series_derivadas.etiqueta_variable(v)
+            + (f" {tab_crudo.MARCA_CC}" if control_calidad.tiene_regla_cc(v, categoria) else ""),
             "value": v,
         }
         for v in variables
@@ -1233,7 +1383,8 @@ def _tabla_resumen_crudo(resultado_de: dict, resultado_conc: dict) -> html.Div:
         pct_conc = "—"
         n_sospechosos = "—"
         if conc is not None and not conc["tabla"].empty:
-            pct_conc = f"{conc['tabla']['respaldado'].mean() * 100:.1f}% (vs. {conc['variable_subdiaria']})"
+            pct_conc = (f"{conc['tabla']['respaldado'].mean() * 100:.1f}% "
+                        f"(vs. {series_derivadas.etiqueta_variable(conc['variable_subdiaria'])})")
             n_sospechosos = f"{int((~conc['tabla']['respaldado']).sum()):,}"
         filas.append(html.Tr([
             html.Td(series_derivadas.info_variable(var).get("display_name", var)),
@@ -1243,8 +1394,22 @@ def _tabla_resumen_crudo(resultado_de: dict, resultado_conc: dict) -> html.Div:
         ]))
 
     tabla_html = dbc.Table([
-        html.Thead(html.Tr([html.Th("Variable"), html.Th("% días efectivos"),
-                             html.Th("% concordancia diaria"), html.Th("Valores sospechosos")])),
+        html.Thead(html.Tr([
+            html.Th("Variable"),
+            html.Th(etiqueta_con_ayuda(
+                "% días completos",
+                "Días en que llegó al menos el 75 % de las lecturas esperadas, sobre el "
+                "total de días del historial.", clase="")),
+            html.Th(etiqueta_con_ayuda(
+                "% coincidencia del valor diario",
+                "Solo para variables que ya vienen como valor diario: % de días en que ese "
+                "valor coincide con lo que muestran los datos horarios de las 24 h previas "
+                "(entre paréntesis, la variable horaria usada).", clase="")),
+            html.Th(etiqueta_con_ayuda(
+                "Días que no coinciden",
+                "Cantidad de días en que el valor diario no coincide con los datos horarios. "
+                "Es un conteo; no lista las fechas.", clase="")),
+        ])),
         html.Tbody(filas),
     ], bordered=True, hover=True, size="sm", className="mb-0")
     return html.Div([tabla_html])
@@ -1294,7 +1459,8 @@ def actualizar_grafico_crudo(datos_crudos, estacion, variables_seleccionadas):
     ]
     fig = charts.panel_crudo_multivariable(paneles)
 
-    msg = f"{len(seleccionadas)} de {len(variables)} variable(s) propia(s) en el gráfico de series."
+    msg = (f"Se grafican {len(seleccionadas)} de las {len(variables)} variables que mide esta estación "
+           "(elige cuáles en «Variables a graficar»).")
     return fig, msg
 
 
@@ -1338,7 +1504,9 @@ def actualizar_dias_efectivos_crudo(estacion, incluir_diarias, cc_incluidos):
     fig_de = charts.panel_dias_efectivos(resultado_de, info_por_var)
 
     excluidas = [v for v, r in resultado_de.items() if r["es_diaria"] and not r["aplica"]]
-    msg = "Histórico completo de la estación (independiente del periodo elegido arriba)."
+    msg = ("Verde = día completo (≥75 % de las lecturas esperadas) · gris = incompleto · "
+           "blanco = sin datos. Muestra todo el historial de la estación, sin importar el "
+           "periodo elegido arriba.")
     if excluidas:
         nombres = ", ".join(series_derivadas.info_variable(v).get("display_name", v) for v in excluidas)
         msg += f" {len(excluidas)} diaria(s) excluida(s) del cálculo: {nombres}."

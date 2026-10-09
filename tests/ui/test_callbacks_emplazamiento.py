@@ -67,32 +67,32 @@ class TestActualizarEmplazamientoTemperatura:
             "AUTOTEST|CONVTEST", "temperatura", None, None, CC_TODAS
         )
         nombres = [t.name for t in fig1.data]
-        assert "Temperatura del Aire" in nombres
-        assert "07h" in nombres
+        assert "Automática · Temperatura del aire" in nombres
+        assert "Convencional · 07h" in nombres
         # Las diarias (máx/mín) NO van en este gráfico, quedan en el 2
-        assert "Máxima diaria" not in nombres
-        assert "Mínima diaria" not in nombres
+        assert "Convencional · Máxima diaria" not in nombres
+        assert "Convencional · Mínima diaria" not in nombres
 
     def test_grafico2_maxima_minima_diaria_incluye_automatica_real(self, estaciones_sinteticas):
         fig1, fig2, diff1, diff2, mensaje = callbacks.actualizar_emplazamiento(
             "AUTOTEST|CONVTEST", "temperatura", None, None, CC_TODAS
         )
         nombres = [t.name for t in fig2.data]
-        assert "Máxima diaria" in nombres
-        assert "Mínima diaria" in nombres
+        assert "Convencional · Máxima diaria" in nombres
+        assert "Convencional · Mínima diaria" in nombres
         # n_maxat/n_minat reales existen en el fixture -> sin nota de "calculado"
-        assert any("Máxima (auto)" == n for n in nombres)
+        assert any("Automática · Máxima diaria" == n for n in nombres)
         assert not any("calculado por el Analizador" in n for n in nombres)
         simbolos = {t.name: t.marker.symbol for t in fig2.data}
-        assert simbolos["Máxima diaria"] == "diamond"
-        assert simbolos["Máxima (auto)"] == "diamond"
+        assert simbolos["Convencional · Máxima diaria"] == "diamond"
+        assert simbolos["Automática · Máxima diaria"] == "diamond"
 
     def test_diff1_solo_horas_sinopticas(self, estaciones_sinteticas):
         fig1, fig2, diff1, diff2, mensaje = callbacks.actualizar_emplazamiento(
             "AUTOTEST|CONVTEST", "temperatura", None, None, CC_TODAS
         )
         nombres_diff1 = [t.name for t in diff1.data]
-        assert nombres_diff1 == ["07h"]
+        assert nombres_diff1 == ["A las 07h"]
         assert diff1.data[0].y[0] == pytest.approx(16.0 - 15.5)  # conv(07h) - auto(07h), día 1
 
     def test_diff2_solo_diarias(self, estaciones_sinteticas):
@@ -109,8 +109,8 @@ class TestActualizarEmplazamientoPrecipitacion:
             "AUTOTEST|CONVTEST", "precipitacion", None, None, CC_TODAS
         )
         nombres = [t.name for t in fig1.data]
-        assert "Total diaria" in nombres
-        assert any(n.startswith("Acumulado diario (auto)") for n in nombres)
+        assert "Convencional · Total diaria" in nombres
+        assert any(n.startswith("Automática · Acumulado diario") for n in nombres)
         # n_dayrain real existe en el fixture -> sin nota de "calculado"
         assert not any("calculado por el Analizador" in n for n in nombres)
 
@@ -119,10 +119,10 @@ class TestActualizarEmplazamientoPrecipitacion:
             "AUTOTEST|CONVTEST", "precipitacion", None, None, CC_TODAS
         )
         nombres = [t.name for t in fig2.data]
-        assert "07h (nocturna 19h→07h)" in nombres
-        assert "19h (diurna 07h→19h)" in nombres
-        assert any("Nocturna" in n for n in nombres)
-        assert any("Diurna" in n for n in nombres)
+        assert "Convencional · 07h (nocturna 19h→07h)" in nombres
+        assert "Convencional · 19h (diurna 07h→19h)" in nombres
+        assert any("Noche" in n for n in nombres)
+        assert any("Día 07 h" in n for n in nombres)
 
     def test_diff1_y_diff2_no_lanzan_error(self, estaciones_sinteticas):
         fig1, fig2, diff1, diff2, mensaje = callbacks.actualizar_emplazamiento(
@@ -176,7 +176,10 @@ class TestActualizarPeriodoEmplazamiento:
     def test_calcula_min_max_start_end_de_ambas_estaciones(self, estaciones_sinteticas):
         fmin, fmax, inicio, fin = callbacks.actualizar_periodo_emplazamiento("AUTOTEST|CONVTEST")
         assert fmin is not None and fmax is not None
-        assert fin == fmax
+        assert fmax == pd.Timestamp("2026-01-05")  # rango descargado (nombre del CSV)
+        # El periodo por defecto termina donde AMBAS tienen datos (01-03), no
+        # donde termina el archivo: así no se abre en días descargados vacíos.
+        assert fin == pd.Timestamp("2026-01-03")
 
     def test_sin_par_da_todo_none(self, estaciones_sinteticas):
         assert callbacks.actualizar_periodo_emplazamiento(None) == (None, None, None, None)

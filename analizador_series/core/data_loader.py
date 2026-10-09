@@ -257,6 +257,37 @@ def rango_fechas(df: pd.DataFrame) -> tuple[datetime, datetime] | tuple[None, No
     return (df["datetime"].min(), df["datetime"].max())
 
 
+def tramos_con_datos(df: pd.DataFrame, codigo: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """
+    Tramos [(dia_ini, dia_fin), ...] de días CONSECUTIVOS en que la estación
+    tiene al menos un valor medido (alguna columna n_* no vacía), a partir de
+    los datos ya cargados. Complementa a tramos_descargados: un CSV pedido
+    para ene→sep puede traer filas solo de algunos meses (caso real: 114066,
+    convencional, solo jun y ago), y el nombre del archivo no lo muestra.
+    """
+    if df.empty or "codigo" not in df.columns or "datetime" not in df.columns:
+        return []
+    sub = df[df["codigo"].astype(str).str.upper() == codigo.upper()]
+    cols = variables_disponibles(sub)
+    if sub.empty or not cols:
+        return []
+    con_valor = sub[cols].apply(pd.to_numeric, errors="coerce").notna().any(axis=1)
+    dias = pd.DatetimeIndex(sub.loc[con_valor, "datetime"]).normalize().unique().sort_values()
+    if dias.empty:
+        return []
+
+    tramos = []
+    ini = fin = dias[0]
+    for d in dias[1:]:
+        if d - fin <= pd.Timedelta(days=1):
+            fin = d
+        else:
+            tramos.append((ini, fin))
+            ini = fin = d
+    tramos.append((ini, fin))
+    return tramos
+
+
 def tramos_descargados(codigo: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
     """
     Tramos [(fi, ff), ...] que YA TENEMOS EN DISCO para esta estación — leídos

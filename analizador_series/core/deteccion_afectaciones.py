@@ -73,6 +73,25 @@ def cadencia_inferida(serie: pd.Series) -> pd.Timedelta | None:
     return moda.iloc[0] if not moda.empty else None
 
 
+def pct_lecturas_esperadas(serie: pd.Series) -> float:
+    """
+    % de lecturas recibidas frente a las esperadas según la frecuencia propia
+    de la variable (cadencia_inferida), dentro de la ventana que cubre la
+    serie (su índice completo, incluidas las filas vacías). Contar contra
+    todas las filas del archivo daba 16,7 % a una variable horaria en una
+    estación que también trae variables de 10 min (5 de cada 6 filas vacías).
+    """
+    s = pd.to_numeric(serie, errors="coerce").dropna()
+    if s.empty:
+        return 0.0
+    cad = cadencia_inferida(s)
+    if cad is None or cad.total_seconds() <= 0:
+        return 100.0
+    ventana = serie.index.max() - serie.index.min()
+    esperadas = int(ventana / cad) + 1
+    return round(min(100.0, len(s) / esperadas * 100), 1)
+
+
 def _duracion_a_pasos(duracion_min: float, cadencia: pd.Timedelta | None) -> int:
     """Convierte una duración en minutos a nº de pasos según la cadencia."""
     if cadencia is None or cadencia.total_seconds() <= 0:

@@ -23,7 +23,28 @@ DIR_CACHE_CONTROL_CALIDAD = ROOT_PROYECTO / "DATA" / "cache_control_calidad"
 
 DIR_CONFIG       = Path(__file__).resolve().parent / "config"
 SERIES_YAML      = DIR_CONFIG / "series_disponibles.yaml"
+NOMBRES_YAML     = DIR_CONFIG / "nombres_variables.yaml"
 AFECTACIONES_YAML = DIR_CONFIG / "afectaciones.yaml"
+
+# ── Afectaciones AF-* (nombre corto para pantalla) ──────────────────────────
+# Definiciones de docs/2026-07-13-rediseno-fase1-design.md. La herramienta
+# solo SUGIERE la afectación; la confirma el analista.
+AF_NOMBRES = {
+    "AF-MISS": "Sin datos",
+    "AF-GAP":  "Huecos intermitentes",
+    "AF-OUT":  "Valor fuera de rango",
+    "AF-NOIS": "Ruido anómalo",
+    "AF-BIAS": "Sesgo o salto de nivel",
+    "AF-CST":  "Valor congelado",
+    "AF-REP":  "Pérdida de representatividad",
+}
+
+
+def af_legible(codigo: str) -> str:
+    """'AF-CST' -> 'Valor constante (congelado) (AF-CST)'; desconocido -> tal cual."""
+    nombre = AF_NOMBRES.get(codigo)
+    return f"{nombre} ({codigo})" if nombre else codigo
+
 
 # ── Servidor Dash ─────────────────────────────────────────────────────────────
 DASH_HOST = "0.0.0.0"

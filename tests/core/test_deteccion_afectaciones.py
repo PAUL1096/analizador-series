@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from analizador_series.core import deteccion_afectaciones as da
 
@@ -238,3 +239,29 @@ class TestDetectarTodas:
             idx_miss = set(by_tipo["AF-MISS"]["indices_afectados"])
             idx_gap = set(by_tipo["AF-GAP"]["indices_afectados"])
             assert not (idx_miss & idx_gap)
+
+
+class TestPctLecturasEsperadas:
+    def _serie(self, idx_valido, idx_total):
+        s = pd.Series(np.nan, index=idx_total)
+        s.loc[idx_valido] = 1.0
+        return s
+
+    def test_horaria_en_grilla_de_10_min_completa_da_100(self):
+        # Caso real 104114: archivo a 10 min, humedad horaria → antes daba 16,7 %.
+        total = pd.date_range("2026-01-01", periods=6 * 48, freq="10min")
+        valido = pd.date_range("2026-01-01", periods=48, freq="1h")
+        assert da.pct_lecturas_esperadas(self._serie(valido, total)) == pytest.approx(100.0, abs=2.5)
+
+    def test_falta_un_bloque_de_la_mitad_del_periodo(self):
+        total = pd.date_range("2026-01-01", periods=48, freq="1h")
+        pct = da.pct_lecturas_esperadas(self._serie(total[:24], total))
+        assert pct == pytest.approx(50.0, abs=1.5)
+
+    # Limitación conocida: si se pierde una de cada dos lecturas de forma
+    # regular, la cadencia inferida (moda) pasa a ser el doble y el % sale
+    # alto. Mismo supuesto que el panel de día efectivo.
+
+    def test_sin_valores_da_cero(self):
+        total = pd.date_range("2026-01-01", periods=10, freq="1h")
+        assert da.pct_lecturas_esperadas(pd.Series(np.nan, index=total)) == 0.0

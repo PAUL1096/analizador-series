@@ -12,6 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from analizador_series.config import af_legible
 from analizador_series.core.deteccion_afectaciones import detectar_cst
 
 
@@ -48,8 +49,9 @@ def chequeo_temp_rocio(t: pd.Series, hr: pd.Series, tol: float = 0.5) -> dict:
     n_validos = int(validos.sum())
     pct = float(violacion_mask.sum() / n_validos * 100) if n_validos else 0.0
     veredicto = (
-        f"{pct:.1f}% de puntos con T-rocío > T (físicamente imposible) — sugiere AF-OUT/AF-BIAS"
-        if pct > 0 else "Sin violaciones: T-rocío ≤ T en todos los puntos válidos"
+        f"{pct:.1f} % de los momentos con punto de rocío mayor que la temperatura "
+        f"(físicamente imposible). Posible {af_legible('AF-OUT')} o {af_legible('AF-BIAS')}."
+        if pct > 0 else "Coherente: el punto de rocío nunca supera a la temperatura."
     )
     return {"violacion": t_n.index[violacion_mask], "pct_violacion": pct, "veredicto": veredicto}
 
@@ -76,9 +78,10 @@ def chequeo_hr_lluvia(hr: pd.Series, lluvia: pd.Series,
     n_sat = int(hr_saturada_sin_lluvia.sum())
     n_baja = int(lluvia_con_hr_baja.sum())
     veredicto = (
-        f"HR≥{umbral_hr_saturado:.0f}% sin lluvia: {n_sat} puntos (posible AF-CST en HR) · "
-        f"lluvia con HR<{umbral_hr_bajo:.0f}%: {n_baja} puntos (incoherencia)"
-        if (n_sat or n_baja) else "Sin incoherencias HR/lluvia detectadas"
+        f"Humedad ≥ {umbral_hr_saturado:.0f} % sin lluvia: {n_sat} momentos (posible "
+        f"{af_legible('AF-CST')} en la humedad) · lluvia con humedad < {umbral_hr_bajo:.0f} %: "
+        f"{n_baja} momentos (poco coherente)."
+        if (n_sat or n_baja) else "Coherente: no hay humedad saturada sin lluvia ni lluvia con humedad baja."
     )
     return {
         "violacion": hr_n.index[violacion_mask], "pct_violacion": pct, "veredicto": veredicto,
@@ -97,7 +100,7 @@ def chequeo_veleta_trabada(direccion: pd.Series, velocidad: pd.Series,
                                   duracion_alta_min=duracion_alta_min, tol=tol_direccion)
     if not resultado_cst:
         return {"violacion": direccion.index[:0], "pct_violacion": 0.0,
-                "veredicto": "Sin racha de dirección constante"}
+                "veredicto": "Coherente: la dirección del viento no se quedó fija."}
 
     idx_racha = resultado_cst["indices_afectados"]
     vel_n = pd.to_numeric(velocidad, errors="coerce")
@@ -106,12 +109,12 @@ def chequeo_veleta_trabada(direccion: pd.Series, velocidad: pd.Series,
 
     if len(idx_con_viento) == 0:
         return {"violacion": direccion.index[:0], "pct_violacion": 0.0,
-                "veredicto": "Dirección constante pero con viento calmo — no es veleta trabada"}
+                "veredicto": "La dirección se quedó fija, pero con viento en calma: no indica veleta trabada."}
 
     pct = float(len(idx_con_viento) / resultado_cst["parametros"]["racha_pasos"] * 100)
     veredicto = (
-        f"Dirección constante ({resultado_cst['severidad']}) con viento > {vel_min} m/s en "
-        f"{len(idx_con_viento)} puntos — sugiere veleta trabada (AF-CST en dirección)"
+        f"Dirección fija (severidad {resultado_cst['severidad'].lower()}) con viento > {vel_min} m/s "
+        f"en {len(idx_con_viento)} momentos: sugiere veleta trabada ({af_legible('AF-CST')} en la dirección)."
     )
     return {"violacion": idx_con_viento, "pct_violacion": pct, "veredicto": veredicto,
             "severidad_direccion": resultado_cst["severidad"]}
@@ -152,10 +155,11 @@ def chequeo_tmax_tmin_t(t: pd.Series, tmax_diario: pd.Series, tmin_diario: pd.Se
 
     partes = []
     if pct > 0:
-        partes.append(f"{pct:.1f}% de T fuera de [Tmin,Tmax] del día (± {tol})")
+        partes.append(f"{pct:.1f} % de los momentos con temperatura fuera del rango mínima–máxima "
+                      f"del día (tolerancia ± {tol} °C)")
     if dias_invertidos > 0:
-        partes.append(f"{dias_invertidos} día(s) con Tmax < Tmin (reporte inconsistente)")
-    veredicto = " · ".join(partes) if partes else "T dentro de [Tmin, Tmax] en todos los días"
+        partes.append(f"{dias_invertidos} día(s) con máxima menor que la mínima (reporte inconsistente)")
+    veredicto = (" · ".join(partes) + ".") if partes else "Coherente: la temperatura queda entre la mínima y la máxima de cada día."
 
     return {
         "violacion": t_n.index[violacion_mask], "pct_violacion": pct, "veredicto": veredicto,
@@ -189,7 +193,9 @@ def chequeo_tmax_tmin_t(t: pd.Series, tmax_diario: pd.Series, tmin_diario: pd.Se
 
 PRESETS = {
     "temp_rocio": {
-        "label": "T vs T-rocío",
+        "label": "Temperatura vs. punto de rocío",
+        "descripcion": "El punto de rocío (calculado con temperatura y humedad) nunca puede "
+                       "ser mayor que la temperatura. ✕ = momentos en que sí lo es.",
         "fn": "chequeo_temp_rocio",
         "roles": {
             "t": ["n_airtemp", "n_airtemp_inst"],
@@ -197,7 +203,9 @@ PRESETS = {
         },
     },
     "hr_lluvia": {
-        "label": "HR vs Lluvia",
+        "label": "Humedad vs. lluvia",
+        "descripcion": "Humedad de 98 % o más sin lluvia sugiere un sensor de humedad pegado; "
+                       "lluvia con humedad bajo 60 % es poco coherente. ✕ = momentos así.",
         "fn": "chequeo_hr_lluvia",
         "roles": {
             "hr": ["n_humedad", "n_humedad_inst"],
@@ -205,7 +213,9 @@ PRESETS = {
         },
     },
     "veleta": {
-        "label": "Viento vel/dir",
+        "label": "Velocidad vs. dirección del viento",
+        "descripcion": "Si hay viento, la dirección no debería quedarse fija mucho tiempo "
+                       "(veleta trabada). ✕ = momentos con dirección fija y viento.",
         "fn": "chequeo_veleta_trabada",
         "roles": {
             "direccion": ["n_dirviento", "n_dirviento_inst"],
@@ -213,7 +223,9 @@ PRESETS = {
         },
     },
     "tmax_tmin": {
-        "label": "Tmax/Tmin/T",
+        "label": "Temperatura vs. máx./mín. del día",
+        "descripcion": "La temperatura de cada momento debe quedar entre la mínima y la "
+                       "máxima reportadas para ese día. ✕ = momentos fuera de ese rango.",
         "fn": "chequeo_tmax_tmin_t",
         "roles": {
             "t": ["n_airtemp", "n_airtemp_inst"],

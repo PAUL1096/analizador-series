@@ -18,52 +18,57 @@ n_humedad:
   # abajo) — la vieja etiqueta hacía que ambas variables se vieran idénticas
   # en el selector, imposibilitando distinguirlas (reportado por el usuario
   # con la estación CHALACO/472FB328, donde ambas coexisten).
-  display_name: "Humedad Relativa"
+  display_name: "Humedad relativa"
   unidad: "%"
   rango_fisico: [0, 100]
   series:
-    - { id: dHR_10m,   tipo: delta,        lag: 1,    label: "Δ 10 min"  }
-    - { id: dHR_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora"  }
-    - { id: absdHR_1h, tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: dHR_3h,    tipo: delta,        lag: 18,   label: "Δ 3 horas" }
-    - { id: dHR_6h,    tipo: delta,        lag: 36,   label: "Δ 6 horas" }
-    - { id: dHR_12h,   tipo: delta,        lag: 72,   label: "Δ 12 horas" }
-    - { id: dHR_24h,   tipo: delta,        lag: 144,  label: "Δ 24 horas" }
-    - { id: stdHR_6h,  tipo: rolling_std,  ventana: 36, label: "Std móvil 6h" }
-    - { id: stdHR_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
-    - { id: zHR_24h,   tipo: z_local,      ventana: 144, label: "Z-score local (24h)" }
+    - { id: dHR_10m,   tipo: delta,        lag: 1,    label: "Cambio en 10 min"  }
+    - { id: dHR_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h"  }
+    - { id: absdHR_1h, tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: dHR_3h,    tipo: delta,        lag: 18,   label: "Cambio en 3 h" }
+    - { id: dHR_6h,    tipo: delta,        lag: 36,   label: "Cambio en 6 h" }
+    - { id: dHR_12h,   tipo: delta,        lag: 72,   label: "Cambio en 12 h" }
+    - { id: dHR_24h,   tipo: delta,        lag: 144,  label: "Cambio en 24 h" }
+    - { id: stdHR_6h,  tipo: rolling_std,  ventana: 36, label: "Variabilidad en 6 h (desv. estándar)" }
+    - { id: stdHR_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
+    - { id: zHR_24h,   tipo: z_local,      ventana: 144, label: "Desvío frente a las últimas 24 h (z)" }
 
 n_humedad_inst:
   # Sufijo "_inst" es de SIGMA, no inventado acá — por eso SÍ se etiqueta
   # "(inst.)". Lo que no está confirmado es qué significa exactamente frente
   # a n_humedad (ver nota en n_airtemp_inst).
-  display_name: "Humedad Relativa (inst.)"
+  display_name: "Humedad relativa (inst.)"
   unidad: "%"
   rango_fisico: [0, 100]
   series:
-    - { id: dHR_10m,   tipo: delta,        lag: 1,    label: "Δ 10 min"  }
-    - { id: dHR_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora"  }
-    - { id: absdHR_1h, tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: dHR_6h,    tipo: delta,        lag: 36,   label: "Δ 6 horas" }
-    - { id: dHR_24h,   tipo: delta,        lag: 144,  label: "Δ 24 horas" }
-    - { id: stdHR_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
-    - { id: zHR_24h,   tipo: z_local,      ventana: 144, label: "Z-score local 24h" }
+    - { id: dHR_10m,   tipo: delta,        lag: 1,    label: "Cambio en 10 min"  }
+    - { id: dHR_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h"  }
+    - { id: absdHR_1h, tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: dHR_6h,    tipo: delta,        lag: 36,   label: "Cambio en 6 h" }
+    - { id: dHR_24h,   tipo: delta,        lag: 144,  label: "Cambio en 24 h" }
+    - { id: stdHR_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
+    - { id: zHR_24h,   tipo: z_local,      ventana: 144, label: "Desvío frente a las últimas 24 h (z)" }
 
+# n_maxrh/n_minrh son el máximo/mínimo DIARIO (antes rotulados "horaria" por
+# error): igual que n_maxat, llegan cada hora pero casi nunca bajan dentro del
+# día (máx. acumulado del día; verificado 2026-10-09 en 111290, 472897F0 y
+# 4729658E, 97 % de las horas). Las horarias son n_maxrhh/n_minrhh, ver
+# nombres_variables.yaml.
 n_maxrh:
-  display_name: "HR máxima horaria"
+  display_name: "Humedad relativa máxima diaria"
   unidad: "%"
   rango_fisico: [0, 100]
   series:
-    - { id: dmaxRH_1h, tipo: delta,        lag: 6,    label: "Δ horario" }
-    - { id: stdmaxRH_24h, tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: dmaxRH_1h, tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: stdmaxRH_24h, tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_minrh:
-  display_name: "HR mínima horaria"
+  display_name: "Humedad relativa mínima diaria"
   unidad: "%"
   rango_fisico: [0, 100]
   series:
-    - { id: dminRH_1h, tipo: delta,        lag: 6,    label: "Δ horario" }
-    - { id: stdminRH_24h, tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: dminRH_1h, tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: stdminRH_24h, tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_airtemp:
   # NO llamar esto "(instantánea)" — verificado con datos reales (472FB328
@@ -76,154 +81,154 @@ n_airtemp:
   # con la hipótesis de que ESTA es la agregada/promedio y la otra la
   # lectura puntual, pero es una INFERENCIA, no una confirmación del
   # catálogo SIGMA.
-  display_name: "Temperatura del Aire"
+  display_name: "Temperatura del aire"
   unidad: "°C"
   rango_fisico: [-30, 50]
   series:
-    - { id: dT_10m,    tipo: delta,        lag: 1,    label: "Δ 10 min" }
-    - { id: dT_1h,     tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: absdT_1h,  tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: dT_3h,     tipo: delta,        lag: 18,   label: "Δ 3 horas" }
-    - { id: dT_6h,     tipo: delta,        lag: 36,   label: "Δ 6 horas" }
-    - { id: dT_12h,    tipo: delta,        lag: 72,   label: "Δ 12 horas" }
-    - { id: dT_24h,    tipo: delta,        lag: 144,  label: "Δ 24 horas" }
-    - { id: stdT_24h,  tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
-    - { id: zT_24h,    tipo: z_local,      ventana: 144, label: "Z-score local 24h" }
+    - { id: dT_10m,    tipo: delta,        lag: 1,    label: "Cambio en 10 min" }
+    - { id: dT_1h,     tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdT_1h,  tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: dT_3h,     tipo: delta,        lag: 18,   label: "Cambio en 3 h" }
+    - { id: dT_6h,     tipo: delta,        lag: 36,   label: "Cambio en 6 h" }
+    - { id: dT_12h,    tipo: delta,        lag: 72,   label: "Cambio en 12 h" }
+    - { id: dT_24h,    tipo: delta,        lag: 144,  label: "Cambio en 24 h" }
+    - { id: stdT_24h,  tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
+    - { id: zT_24h,    tipo: z_local,      ventana: 144, label: "Desvío frente a las últimas 24 h (z)" }
 
 n_airtemp_inst:
   # Sufijo "_inst" es de SIGMA, no inventado acá. Ver nota completa arriba
   # en n_airtemp — misma cadencia horaria, definición exacta sin confirmar.
-  display_name: "Temperatura del Aire (inst.)"
+  display_name: "Temperatura del aire (inst.)"
   unidad: "°C"
   rango_fisico: [-30, 50]
   series:
-    - { id: dT_1h,     tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: absdT_1h,  tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: dT_6h,     tipo: delta,        lag: 36,   label: "Δ 6 horas" }
-    - { id: dT_24h,    tipo: delta,        lag: 144,  label: "Δ 24 horas" }
-    - { id: stdT_24h,  tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
-    - { id: zT_24h,    tipo: z_local,      ventana: 144, label: "Z-score local 24h" }
+    - { id: dT_1h,     tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdT_1h,  tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: dT_6h,     tipo: delta,        lag: 36,   label: "Cambio en 6 h" }
+    - { id: dT_24h,    tipo: delta,        lag: 144,  label: "Cambio en 24 h" }
+    - { id: stdT_24h,  tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
+    - { id: zT_24h,    tipo: z_local,      ventana: 144, label: "Desvío frente a las últimas 24 h (z)" }
 
 # n_maxat/n_minat (DIARIA) vs n_maxath/n_minath (HORARIA) — magnitud distinta,
 # confirmado contra datos reales (misma nota que ya existía en consistencia.py
 # junto a PRESETS). Antes de esto caían en el catch-all "_default" con
 # display_name "Variable", indistinguibles entre sí en el selector.
 n_maxat:
-  display_name: "Temperatura Máxima diaria"
+  display_name: "Temperatura máxima diaria"
   unidad: "°C"
   rango_fisico: [-30, 50]
   series:
-    - { id: dTmax_24h, tipo: delta, lag: 144, label: "Δ 24 horas" }
+    - { id: dTmax_24h, tipo: delta, lag: 144, label: "Cambio en 24 h" }
 
 n_minat:
-  display_name: "Temperatura Mínima diaria"
+  display_name: "Temperatura mínima diaria"
   unidad: "°C"
   rango_fisico: [-30, 50]
   series:
-    - { id: dTmin_24h, tipo: delta, lag: 144, label: "Δ 24 horas" }
+    - { id: dTmin_24h, tipo: delta, lag: 144, label: "Cambio en 24 h" }
 
 n_maxath:
-  display_name: "Temperatura Máxima horaria"
+  display_name: "Temperatura máxima horaria"
   unidad: "°C"
   rango_fisico: [-30, 50]
   series:
-    - { id: dTmaxh_1h, tipo: delta, lag: 6, label: "Δ horario" }
-    - { id: stdTmaxh_24h, tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: dTmaxh_1h, tipo: delta, lag: 6, label: "Cambio en 1 h" }
+    - { id: stdTmaxh_24h, tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_minath:
-  display_name: "Temperatura Mínima horaria"
+  display_name: "Temperatura mínima horaria"
   unidad: "°C"
   rango_fisico: [-30, 50]
   series:
-    - { id: dTminh_1h, tipo: delta, lag: 6, label: "Δ horario" }
-    - { id: stdTminh_24h, tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: dTminh_1h, tipo: delta, lag: 6, label: "Cambio en 1 h" }
+    - { id: stdTminh_24h, tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_presatm:
-  display_name: "Presión Atmosférica"
+  display_name: "Presión atmosférica"
   unidad: "hPa"
   rango_fisico: [500, 1100]
   series:
-    - { id: dP_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: absdP_1h, tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: dP_3h,    tipo: delta,        lag: 18,   label: "Δ 3 horas (tendencia)" }
-    - { id: dP_12h,   tipo: delta,        lag: 72,   label: "Δ 12 horas" }
-    - { id: stdP_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
+    - { id: dP_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdP_1h, tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: dP_3h,    tipo: delta,        lag: 18,   label: "Cambio en 3 h (tendencia)" }
+    - { id: dP_12h,   tipo: delta,        lag: 72,   label: "Cambio en 12 h" }
+    - { id: stdP_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_presatm_inst:
   # Sufijo "_inst" es de SIGMA — ver nota en n_airtemp sobre por qué no se
   # etiqueta n_presatm como "(instantánea)" tampoco acá.
-  display_name: "Presión Atmosférica (inst.)"
+  display_name: "Presión atmosférica (inst.)"
   unidad: "hPa"
   rango_fisico: [500, 1100]
   series:
-    - { id: dP_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: dP_3h,    tipo: delta,        lag: 18,   label: "Δ 3 horas" }
-    - { id: stdP_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
+    - { id: dP_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: dP_3h,    tipo: delta,        lag: 18,   label: "Cambio en 3 h" }
+    - { id: stdP_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_velviento:
-  display_name: "Velocidad del Viento"
+  display_name: "Velocidad del viento"
   unidad: "m/s"
   rango_fisico: [0, 75]
   series:
-    - { id: dV_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: absdV_1h, tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: stdV_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
+    - { id: dV_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdV_1h, tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: stdV_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_dirviento:
-  display_name: "Dirección del Viento"
+  display_name: "Dirección del viento"
   unidad: "°"
   rango_fisico: [0, 360]
   series:
-    - { id: dD_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: absdD_1h, tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
+    - { id: dD_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdD_1h, tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
 
 n_racha:
   display_name: "Racha máxima"
   unidad: "m/s"
   rango_fisico: [0, 75]
   series:
-    - { id: dRa_1h,   tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: stdRa_24h, tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: dRa_1h,   tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: stdRa_24h, tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_lluvia:
   display_name: "Precipitación"
   unidad: "mm"
   rango_fisico: [0, 401]
   series:
-    - { id: stdL_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
-    - { id: rollL_1h, tipo: rolling_mean, ventana: 6,   label: "Media móvil 1h" }
+    - { id: stdL_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
+    - { id: rollL_1h, tipo: rolling_mean, ventana: 6,   label: "Promedio móvil de 1 h" }
 
 n_rain_10m:
   display_name: "Precipitación 10 min"
   unidad: "mm"
   rango_fisico: [0, 401]
   series:
-    - { id: rollR_1h,  tipo: rolling_mean, ventana: 6,   label: "Media móvil 1h" }
-    - { id: stdR_24h,  tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
+    - { id: rollR_1h,  tipo: rolling_mean, ventana: 6,   label: "Promedio móvil de 1 h" }
+    - { id: stdR_24h,  tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_dayrain:
   display_name: "Precipitación diaria acumulada"
   unidad: "mm"
   rango_fisico: [0, 508]
   series:
-    - { id: dDay_24h, tipo: delta, lag: 144, label: "Δ 24 horas" }
+    - { id: dDay_24h, tipo: delta, lag: 144, label: "Cambio en 24 h" }
 
 n_int_lluvia:
-  display_name: "Intensidad de Lluvia"
+  display_name: "Intensidad de lluvia"
   unidad: "mm/h"
   rango_fisico: [0, 200]
   series:
-    - { id: stdInt_24h, tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: stdInt_24h, tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 n_nivelagua:
-  display_name: "Nivel del Agua"
+  display_name: "Nivel del agua"
   unidad: "m"
   rango_fisico: [0, 35]
   series:
-    - { id: dN_1h,    tipo: delta,        lag: 6,    label: "Δ 1 hora" }
-    - { id: absdN_1h, tipo: abs_delta,    lag: 6,    label: "|Δ| 1 hora" }
-    - { id: dN_6h,    tipo: delta,        lag: 36,   label: "Δ 6 horas" }
-    - { id: stdN_24h, tipo: rolling_std,  ventana: 144, label: "Std móvil 24h" }
+    - { id: dN_1h,    tipo: delta,        lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdN_1h, tipo: abs_delta,    lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: dN_6h,    tipo: delta,        lag: 36,   label: "Cambio en 6 h" }
+    - { id: stdN_24h, tipo: rolling_std,  ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }
 
 # Catch-all para variables no listadas (asume 10-min)
 _default:
@@ -231,7 +236,7 @@ _default:
   unidad: ""
   rango_fisico: [null, null]
   series:
-    - { id: dv_10m,    tipo: delta,       lag: 1,    label: "Δ 10 min" }
-    - { id: dv_1h,     tipo: delta,       lag: 6,    label: "Δ 1 hora" }
-    - { id: absdv_1h,  tipo: abs_delta,   lag: 6,    label: "|Δ| 1 hora" }
-    - { id: std_24h,   tipo: rolling_std, ventana: 144, label: "Std móvil 24h" }
+    - { id: dv_10m,    tipo: delta,       lag: 1,    label: "Cambio en 10 min" }
+    - { id: dv_1h,     tipo: delta,       lag: 6,    label: "Cambio en 1 h" }
+    - { id: absdv_1h,  tipo: abs_delta,   lag: 6,    label: "Cambio absoluto en 1 h" }
+    - { id: std_24h,   tipo: rolling_std, ventana: 144, label: "Variabilidad en 24 h (desv. estándar)" }

@@ -127,3 +127,49 @@ class TestFiltrarPorFlags:
         df = pd.DataFrame({"n_airtemp": [20.0]})  # sin flag_n_airtemp ni cc_n_airtemp
         r = data_loader.filtrar_por_flags(df, ["C"])
         assert r["n_airtemp"].iloc[0] == 20.0
+
+
+def _df_dias(codigo, dias_con_valor, dias_sin_valor=()):
+    """Una fila diaria por fecha; n_x con valor en dias_con_valor y NaN en dias_sin_valor."""
+    filas = [(codigo, pd.Timestamp(d), 1.0) for d in dias_con_valor]
+    filas += [(codigo, pd.Timestamp(d), float("nan")) for d in dias_sin_valor]
+    return pd.DataFrame(filas, columns=["codigo", "datetime", "n_x"])
+
+
+class TestTramosConDatos:
+    """Cobertura REAL (días con al menos un valor medido), no la del nombre del CSV:
+    un archivo pedido para ene→sep puede traer solo jun y ago (caso real 114066)."""
+
+    def test_dos_meses_separados_dan_dos_tramos(self):
+        dias = list(pd.date_range("2026-06-01", "2026-06-30")) + list(pd.date_range("2026-08-01", "2026-08-31"))
+        tramos = data_loader.tramos_con_datos(_df_dias("114066", dias), "114066")
+        assert tramos == [
+            (pd.Timestamp("2026-06-01"), pd.Timestamp("2026-06-30")),
+            (pd.Timestamp("2026-08-01"), pd.Timestamp("2026-08-31")),
+        ]
+
+    def test_filas_sin_ningun_valor_no_cuentan(self):
+        df = _df_dias("A", ["2026-01-01", "2026-01-02"], dias_sin_valor=["2026-01-03", "2026-01-04"])
+        assert data_loader.tramos_con_datos(df, "A") == [
+            (pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")),
+        ]
+
+    def test_varios_registros_el_mismo_dia_cuentan_una_vez(self):
+        df = pd.DataFrame({
+            "codigo": ["A"] * 3,
+            "datetime": pd.to_datetime(["2026-01-01 00:00", "2026-01-01 10:00", "2026-01-02 05:00"]),
+            "n_x": [1.0, 2.0, 3.0],
+        })
+        assert data_loader.tramos_con_datos(df, "A") == [
+            (pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")),
+        ]
+
+    def test_solo_considera_la_estacion_pedida(self):
+        df = pd.concat([_df_dias("A", ["2026-01-01"]), _df_dias("B", ["2026-05-01"])])
+        assert data_loader.tramos_con_datos(df, "a") == [
+            (pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-01")),
+        ]
+
+    def test_df_vacio_o_sin_valores_da_lista_vacia(self):
+        assert data_loader.tramos_con_datos(pd.DataFrame(), "A") == []
+        assert data_loader.tramos_con_datos(_df_dias("A", [], ["2026-01-01"]), "A") == []

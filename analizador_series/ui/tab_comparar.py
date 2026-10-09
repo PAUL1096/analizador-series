@@ -11,13 +11,15 @@ from __future__ import annotations
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
+from analizador_series.ui.layout import etiqueta_con_ayuda
+
 
 PRESET_OPTIONS = [
-    {"label": "T vs T-rocío", "value": "temp_rocio"},
-    {"label": "HR vs Lluvia", "value": "hr_lluvia"},
-    {"label": "Viento vel/dir", "value": "veleta"},
-    {"label": "Tmax/Tmin/T", "value": "tmax_tmin"},
-    {"label": "Libre", "value": "libre"},
+    {"label": "Temperatura vs. punto de rocío", "value": "temp_rocio"},
+    {"label": "Humedad vs. lluvia", "value": "hr_lluvia"},
+    {"label": "Velocidad vs. dirección del viento", "value": "veleta"},
+    {"label": "Temperatura vs. máx./mín. del día", "value": "tmax_tmin"},
+    {"label": "Elegir 2 variables", "value": "libre"},
 ]
 
 
@@ -35,7 +37,12 @@ def layout(estacion_opts: list[dict] | None = None, estacion_value: str | None =
                         ),
                     ], md=3),
                     dbc.Col([
-                        html.Label("Chequeo:", className="fw-bold"),
+                        etiqueta_con_ayuda(
+                            "Chequeo de coherencia:",
+                            "Compara dos variables de la misma estación que deben ser "
+                            "físicamente coherentes y marca con ✕ los momentos en que no lo "
+                            "son. «Elegir 2 variables» solo las superpone, sin aplicar reglas.",
+                        ),
                         dbc.RadioItems(
                             id="rb-comparar-preset", options=PRESET_OPTIONS, value="libre",
                             className="btn-group flex-wrap", inputClassName="btn-check",
@@ -50,11 +57,11 @@ def layout(estacion_opts: list[dict] | None = None, estacion_value: str | None =
                 html.Div(
                     dbc.Row([
                         dbc.Col([
-                            html.Label("Variable 1:", className="fw-bold small"),
+                            html.Label("Variable 1 (eje izquierdo):", className="fw-bold small"),
                             dcc.Dropdown(id="dd-comparar-var1", options=[]),
                         ], md=4),
                         dbc.Col([
-                            html.Label("Variable 2:", className="fw-bold small"),
+                            html.Label("Variable 2 (eje derecho si su unidad es distinta):", className="fw-bold small"),
                             dcc.Dropdown(id="dd-comparar-var2", options=[]),
                         ], md=4),
                     ], className="g-2 mt-2"),

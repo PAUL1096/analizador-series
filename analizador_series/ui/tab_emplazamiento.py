@@ -15,6 +15,8 @@ from __future__ import annotations
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
+from analizador_series.ui.layout import AYUDA_CONTROL_CALIDAD, etiqueta_con_ayuda
+
 
 VARIABLE_OPTIONS = [
     {"label": "Temperatura", "value": "temperatura"},
@@ -28,24 +30,27 @@ VARIABLE_OPTIONS = [
 # Versión corta (vive al lado del selector de periodo) — cambia según la
 # variable física elegida, ver ui.callbacks.actualizar_disclaimer_emplazamiento.
 DISCLAIMER_TEMPERATURA_MD = """
-ℹ️ **Máx/mín diaria:** real (`n_maxat`/`n_minat`) o, si falta, el extremo de
-los valores ya agregados por hora (`n_maxath`/`n_minath`) — nunca `n_airtemp`:
-`Máx_calc(D) = máx{n_maxath(t): t∈D}`
+ℹ️ **Máxima y mínima diarias:** las que reporta la automática (`n_maxat`/`n_minat`).
+Si no las reporta, se toma el mayor/menor de sus máximos/mínimos horarios
+(`n_maxath`/`n_minath`) y se rotulan «calculada».
 
-**Horas sinópticas:** valor real en su hora exacta, sin cálculo.
+**07, 13 y 19 h:** lectura de la convencional a esa hora, frente al valor de la
+automática en el mismo momento (sin cálculos).
 
-**Diferencia** = Convencional − Automática.
+**Diferencia** = convencional − automática (positiva: la convencional marca más).
 """
 
 DISCLAIMER_PRECIPITACION_MD = """
-ℹ️ **Acumulado diario:** real (`n_dayrain`) o, si falta:
-`Acum_calc(D) = Σn_lluvia, t∈(07h D−1, 07h D]`
-(`n_pt101` se muestra +1 día vs. su fecha cruda de SIGMA)
+ℹ️ **Acumulado del día:** el que reporta la automática (`n_dayrain`); si no lo
+reporta, la suma de su precipitación de 07 h del día anterior a 07 h (rotulado
+«calculada»). El total diario de la convencional (`n_pt101`) se corre un día para
+que ambos cubran el mismo periodo.
 
-**Ventaneo 07h/19h:** siempre calculado:
-`Noct(D)=Σn_lluvia(19h D−1→07h D)` · `Día(D)=Σn_lluvia(07h D→19h D)`
+**Turnos de lectura:** para la automática se suma su precipitación de 19 h a 07 h
+(noche) y de 07 h a 19 h (día), para compararla con las lecturas de la convencional
+a las 07 h y a las 19 h.
 
-**Diferencia** = Convencional − Automática.
+**Diferencia** = convencional − automática (positiva: la convencional marca más).
 """
 
 
@@ -62,7 +67,7 @@ def opciones_pares(pares: list[dict], nombres: dict[str, str] | None = None) -> 
 
     return [
         {
-            "label": f"{_etq(p['codigo_auto'])} ↔ {_etq(p['codigo_conv'])} · {p['distancia_m']:.0f}m",
+            "label": f"{_etq(p['codigo_auto'])} ↔ {_etq(p['codigo_conv'])} · a {p['distancia_m']:.0f} m",
             "value": f"{p['codigo_auto']}|{p['codigo_conv']}",
         }
         for p in pares
@@ -75,7 +80,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
             dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Par co-ubicado (automática ↔ convencional):",
+                        html.Label("Par de estaciones que comparten emplazamiento (automática ↔ convencional):",
                                    className="fw-bold"),
                         dcc.Dropdown(
                             id="dd-emplazamiento-par", options=pares_opts or [],
@@ -121,13 +126,13 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
 
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Control de calidad (CC) a incluir:", className="fw-bold"),
+                        etiqueta_con_ayuda("Control de calidad del Analizador:", AYUDA_CONTROL_CALIDAD),
                         dcc.Checklist(
                             id="cl-cc-emplazamiento",
                             options=[
-                                {"label": " BUENO",  "value": "BUENO"},
-                                {"label": " DUDOSO", "value": "DUDOSO"},
-                                {"label": " MALO",   "value": "MALO"},
+                                {"label": " Bueno",  "value": "BUENO"},
+                                {"label": " Dudoso", "value": "DUDOSO"},
+                                {"label": " Malo",   "value": "MALO"},
                             ],
                             value=["BUENO", "DUDOSO", "MALO"],
                             inline=True,
@@ -136,6 +141,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                     ], md=6),
                 ], className="g-2 mt-2"),
 
+                html.Div(id="div-emplazamiento-cobertura", className="mt-2"),
                 html.Div(id="div-emplazamiento-mensaje", className="text-muted small mt-2"),
             ]),
             className="shadow-sm mb-3",

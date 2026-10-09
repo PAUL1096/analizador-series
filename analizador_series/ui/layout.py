@@ -19,6 +19,28 @@ import dash_bootstrap_components as dbc
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Ayuda en línea: título + ícono ⓘ con la explicación al pasar el mouse (title
+# nativo del navegador — no agrega texto fijo a la pantalla).
+# ══════════════════════════════════════════════════════════════════════════════
+
+AYUDA_CONTROL_CALIDAD = (
+    "Reglas propias de esta herramienta (rango físico, saltos, coherencia entre "
+    "variables), basadas en los manuales técnicos MT-DRD del SENAMHI. Se calculan "
+    "en esta PC: no es el control de calidad oficial ni se envía a ningún sistema. "
+    "Solo algunas variables tienen reglas; las demás quedan como Bueno. Se combina "
+    "con la calificación de SIGMA: un valor se muestra si pasa ambos filtros."
+)
+
+
+def etiqueta_con_ayuda(texto: str, ayuda: str, clase: str = "fw-bold") -> html.Label:
+    return html.Label([
+        texto,
+        html.Span(" ⓘ", title=ayuda, className="text-primary",
+                  style={"cursor": "help", "fontWeight": "normal"}),
+    ], className=clase)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Selectores compartidos (estaciones, periodo, flags)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -53,7 +75,7 @@ def selectores_compartidos() -> html.Div:
                 ], md=6),
 
                 dbc.Col([
-                    html.Label("Periodo:", className="fw-bold"),
+                    html.Label("Periodo a analizar:", className="fw-bold"),
                     dcc.DatePickerRange(
                         id="dt-periodo",
                         display_format="YYYY-MM-DD",
@@ -62,13 +84,18 @@ def selectores_compartidos() -> html.Div:
                 ], md=3),
 
                 dbc.Col([
-                    html.Label("Flags a incluir en el análisis:", className="fw-bold"),
+                    etiqueta_con_ayuda(
+                        "Calificación del dato en SIGMA:",
+                        "SIGMA califica cada valor que recibe: Correcto (C), Malo (M) o "
+                        "Sin dato (SD). Marca cuáles quieres incluir en gráficos y "
+                        "cálculos; lo que desmarques se trata como dato faltante.",
+                    ),
                     dcc.Checklist(
                         id="cl-flags",
                         options=[
-                            {"label": " C (correctos)",  "value": "C"},
-                            {"label": " M (malos)",      "value": "M"},
-                            {"label": " SD (sin dato)",  "value": "SD"},
+                            {"label": " Correcto (C)",  "value": "C"},
+                            {"label": " Malo (M)",      "value": "M"},
+                            {"label": " Sin dato (SD)", "value": "SD"},
                         ],
                         value=["C"],         # ← por defecto, solo correctos
                         inline=True,
@@ -83,13 +110,16 @@ def selectores_compartidos() -> html.Div:
             # confusión de "esto es CC de SGD" que ya pasó una vez en este proyecto.
             dbc.Row([
                 dbc.Col([
-                    html.Label("Control de calidad (CC) a incluir:", className="fw-bold"),
+                    etiqueta_con_ayuda(
+                        "Control de calidad del Analizador:",
+                        AYUDA_CONTROL_CALIDAD,
+                    ),
                     dcc.Checklist(
                         id="cl-cc",
                         options=[
-                            {"label": " BUENO",  "value": "BUENO"},
-                            {"label": " DUDOSO", "value": "DUDOSO"},
-                            {"label": " MALO",   "value": "MALO"},
+                            {"label": " Bueno",  "value": "BUENO"},
+                            {"label": " Dudoso", "value": "DUDOSO"},
+                            {"label": " Malo",   "value": "MALO"},
                         ],
                         value=["BUENO", "DUDOSO", "MALO"],   # por defecto, no filtra nada
                         inline=True,

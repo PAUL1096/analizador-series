@@ -13,6 +13,8 @@ from __future__ import annotations
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
+from analizador_series.ui.layout import etiqueta_con_ayuda
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Selectores propios de Estadística (variable, series derivadas, percentil)
@@ -34,7 +36,14 @@ def selectores_estadistica(variable_opts: list[dict] | None = None,
                 ], md=3),
 
                 dbc.Col([
-                    html.Label("Series derivadas a calcular:", className="fw-bold"),
+                    etiqueta_con_ayuda(
+                        "Indicadores de cambio a calcular:",
+                        "Se calculan a partir de la variable elegida. «Cambio en X» = valor "
+                        "actual menos el de hace X. «Cambio absoluto» = lo mismo sin signo. "
+                        "«Variabilidad» = desviación estándar en la ventana. «Desvío frente a "
+                        "las últimas 24 h (z)» = cuántas desviaciones se aleja del promedio "
+                        "reciente. Valores muy altos sugieren saltos, ruido o fallas.",
+                    ),
                     dcc.Checklist(
                         id="cl-series-derivadas",
                         options=[],
@@ -45,7 +54,11 @@ def selectores_estadistica(variable_opts: list[dict] | None = None,
                 ], md=6),
 
                 dbc.Col([
-                    html.Label("Percentil para detectar eventos:", className="fw-bold"),
+                    etiqueta_con_ayuda(
+                        "Umbral para marcar eventos (percentil):",
+                        "Un evento es un valor del indicador que supera este percentil de "
+                        "su propia distribución. p99 = solo el 1 % más extremo.",
+                    ),
                     dcc.Slider(
                         id="sl-percentil", min=90, max=99.9, step=0.1, value=99,
                         marks={90: "p90", 95: "p95", 99: "p99", 99.5: "p99.5"},
@@ -66,7 +79,7 @@ def panel_series_y_distrib() -> html.Div:
         dbc.Col([
             dbc.Card(
                 dbc.CardBody([
-                    html.H6("Serie temporal y derivadas", className="text-muted mb-2"),
+                    html.H6("Serie medida e indicadores de cambio", className="text-muted mb-2"),
                     dcc.Loading(dcc.Graph(id="g-series", config={"displaylogo": False})),
                 ]),
                 className="shadow-sm",
@@ -76,10 +89,10 @@ def panel_series_y_distrib() -> html.Div:
         dbc.Col([
             dbc.Card(
                 dbc.CardBody([
-                    html.H6("Distribución de la serie derivada", className="text-muted mb-2"),
+                    html.H6("Distribución del indicador", className="text-muted mb-2"),
                     dcc.Dropdown(
                         id="dd-derivada-foco",
-                        placeholder="Elige qué serie derivada examinar…",
+                        placeholder="Elige qué indicador examinar…",
                         clearable=False,
                     ),
                     dcc.Loading(dcc.Graph(id="g-hist", config={"displaylogo": False})),
@@ -100,7 +113,7 @@ def panel_patrones() -> html.Div:
         dbc.Col([
             dbc.Card(
                 dbc.CardBody([
-                    html.H6("Distribución por mes / hora-del-día", className="text-muted mb-2"),
+                    html.H6("Distribución del indicador por mes, hora o año", className="text-muted mb-2"),
                     dbc.RadioItems(
                         id="rb-boxplot-dim",
                         options=[
@@ -119,7 +132,7 @@ def panel_patrones() -> html.Div:
         dbc.Col([
             dbc.Card(
                 dbc.CardBody([
-                    html.H6("Heatmap de eventos: mes × hora-del-día", className="text-muted mb-2"),
+                    html.H6("Eventos por mes y hora del día", className="text-muted mb-2"),
                     dcc.Loading(dcc.Graph(id="g-heatmap", config={"displaylogo": False})),
                 ]),
                 className="shadow-sm",
@@ -131,7 +144,7 @@ def panel_patrones() -> html.Div:
 def panel_eventos() -> html.Div:
     return dbc.Card(
         dbc.CardBody([
-            html.H6("Eventos detectados — series derivadas que exceden el percentil elegido",
+            html.H6("Eventos detectados: valores del indicador que superan el umbral",
                     className="text-muted mb-2"),
             html.Div(id="div-resumen-eventos", className="small mb-2 text-muted"),
             dcc.Loading(html.Div(id="div-tabla-eventos")),
