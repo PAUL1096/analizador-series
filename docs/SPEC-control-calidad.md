@@ -1,6 +1,6 @@
 # Spec: control-calidad — Pipeline de Control de Calidad local del Analizador
 
-Module id: `control-calidad` (capability map: `control-calidad` → `vecindad`)
+Module id: `control-calidad` (capability map: `control-calidad` → `emplazamiento`)
 
 ## Objetivo
 
@@ -56,7 +56,7 @@ no cambiaron desde la última vez.
 - No implementa el CC oficial de SGD (MT-DRD-002/003) completo ni pretende
   sustituirlo — usa esos manuales como REFERENCIA numérica para una capa de análisis
   propia, distinta y separada.
-- No incluye la comparación por vecindad automática↔convencional (module `vecindad`,
+- No incluye la comparación por emplazamiento compartido automática↔convencional (module `emplazamiento`,
   spec aparte, depende de este).
 - No incluye reglas para variables sin equivalente físico documentado (nubosidad,
   visibilidad, heliofanía, evaporación, calidad de agua) — quedan sin CC propio por

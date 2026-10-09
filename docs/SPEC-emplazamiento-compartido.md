@@ -1,6 +1,6 @@
-# Spec: vecindad — Comparación visual automática↔convencional co-ubicada
+# Spec: emplazamiento compartido — Comparación visual automática↔convencional co-ubicada
 
-Module id: `vecindad` (capability map: `control-calidad` → `vecindad`, depende de
+Module id: `emplazamiento` (capability map: `control-calidad` → `emplazamiento`, depende de
 `control-calidad` solo para su checkbox de CC — el resto es independiente).
 
 ## Objetivo
@@ -29,7 +29,7 @@ vista (no una línea conectando 3 puntos/día, que sugeriría falsamente continu
 con su propio crosswalk verificado de 17 pares y una batería estadística rigurosa
 (`scripts/comparacion_core.py`: sesgo/MAE/RMSE, Kendall/Pearson, KS, BIASS/POD/FAR,
 coeficiente de inconsistencia — citando SMN NT 2023-135 y NT 2024-167). **Decisión
-explícita del usuario: son herramientas separadas.** `vecindad` no reemplaza ni
+explícita del usuario: son herramientas separadas.** `emplazamiento` no reemplaza ni
 reimplementa esa rigurosidad — es una vista rápida para explorar CUALQUIER par de la
 red (no solo esos 17), usando el emparejamiento por distancia GPS ya calculado. Se
 usaron los CSV reales de PLIA únicamente para confirmar la nomenclatura real de
@@ -60,7 +60,7 @@ Fecha,Hora,n_pt101,n_pt102,n_pt103,n_tm102,n_tm103,n_tm104,n_tm105,n_tm106,n_tm1
   con `n_airtemp` (bulbo seco) de la automática — se excluyen de la equivalencia (no
   hay overlay significativo posible sin una conversión que este spec no cubre).
 - El código real usa **`n_maxath`/`n_minath`** (extremos horarios de la automática)
-  para comparar contra `n_tm102`/`n_tm103` en PLIA — pero como `vecindad` no calcula
+  para comparar contra `n_tm102`/`n_tm103` en PLIA — pero como `emplazamiento` no calcula
   agregados propios (solo superpone lo que ya existe), usa directamente
   **`n_airtemp`** (la serie continua) como referencia visual — el usuario ve la
   línea completa y los puntos de máx/mín diaria encima, sin que el Analizador
@@ -71,13 +71,13 @@ Fecha,Hora,n_pt101,n_pt102,n_pt103,n_tm102,n_tm103,n_tm104,n_tm105,n_tm106,n_tm1
 - Refrescar `data_ref/estaciones.db` con `latitud`, `longitud`, `estado_operatividad`
   (extiende el script `data_ref/actualizar_geodatos.py` que ya existe de
   `control-calidad`, mismo Excel de origen).
-- `core/vecindad.py`: `calcular_pares_colocados(umbral_m=100)` — haversine entre
+- `core/emplazamiento.py`: `calcular_pares_colocados(umbral_m=100)` — haversine entre
   todas las automáticas y convencionales de `estaciones.db`, ya validado con datos
   reales (204 pares, 57 a 0.0m exactos, 185 de 413 automáticas con candidata).
 - Diccionario de equivalencia (`temperatura`, `precipitacion`), cada uno con la
   variable continua de la automática + las variables puntuales de la convencional
   disponibles para ese par (una estación puede no tener alguna).
-- Pestaña nueva `ui/tab_vecindad.py`, **independiente del selector compartido**
+- Pestaña nueva `ui/tab_emplazamiento.py`, **independiente del selector compartido**
   (`dd-codigos`/Periodo de arriba) — carga sus propios dos códigos al elegir un par,
   con su propio selector de periodo (default últimos 6 meses, igual que Vista
   Cruda).
@@ -102,7 +102,7 @@ con el usuario antes de implementar:
   convencional se desplaza de medianoche a su hora real (puntual) o al
   mediodía con símbolo distinto — diamante — (diaria), para no comparar
   "diarias contra el instante equivocado de la curva horaria" ni insinuar
-  que una diaria es una lectura puntual. Ver `core.vecindad.EQUIVALENCIA_VARIABLES`
+  que una diaria es una lectura puntual. Ver `core.emplazamiento.EQUIVALENCIA_VARIABLES`
   (metadata `tipo`/`hora` por columna) y `armar_extra_series_convencional`.
 - **Panel de diferencias — excepción acotada al límite de abajo, no su
   eliminación:** se agregó un panel de diferencias (convencional − automática)
@@ -110,10 +110,10 @@ con el usuario antes de implementar:
   automática SÍ tiene un valor real en ese instante exacto con el que
   comparar directo — no es una estadística agregada, es una resta punto a
   punto. Las "diaria" (máx/mín/total) siguen **sin** diferencia: calcularla
-  exigiría que vecindad compute su propio agregado diario de la automática,
+  exigiría que emplazamiento compartido compute su propio agregado diario de la automática,
   y esa rigurosidad sigue siendo tarea exclusiva de PLIA (el límite de abajo
-  sigue vigente para ese caso). Ver `core.vecindad.calcular_diferencias_puntuales`
-  y `ui.charts.panel_diferencias_vecindad`.
+  sigue vigente para ese caso). Ver `core.emplazamiento.calcular_diferencias_puntuales`
+  y `ui.charts.panel_diferencias_emplazamiento`.
 
 ## Revisión de alcance, Ronda 2 (2026-09-30, mismo día — rediseño completo)
 
@@ -126,7 +126,7 @@ en 4 gráficos separados por tipo de comparación, con dos hallazgos nuevos
 verificados con datos reales:
 
 - **La automática SÍ tiene sus propios extremos/acumulados diarios
-  reales, sin que vecindad calcule nada:** `n_maxat`/`n_minat` (Máx/Mín
+  reales, sin que emplazamiento compartido calcule nada:** `n_maxat`/`n_minat` (Máx/Mín
   Diaria, confirmado 482 registros reales en 4728B11C) y `n_dayrain`
   (acumulado diario, 486 registros reales) — el equivalente exacto de
   `n_tm102`/`n_tm103`/`n_pt101` de la convencional. Respaldo si estas
@@ -139,7 +139,7 @@ verificados con datos reales:
     subestima picos intra-hora — verificado en 104114, 16.6°C de max(n_airtemp)
     vs. 18.8°C real de max(n_maxath) el mismo día; ver tasks/todo.md).
   - Precipitación: suma de `n_lluvia` en la ventana 07h→07h (ver más abajo).
-  Ver `core.vecindad.calcular_extremos_diarios_automatica` y
+  Ver `core.emplazamiento.calcular_extremos_diarios_automatica` y
   `calcular_acumulado_diario_automatica`.
 - **`n_pt101` tiene un desfase de fecha real frente a `n_dayrain`,
   verificado con datos reales (21/21 casos no triviales en 106077):** SIGMA
@@ -153,15 +153,15 @@ verificados con datos reales:
   por el usuario, no una reversión del límite general:** se suma `n_lluvia`
   de la automática en las ventanas 19:01→07:00 (nocturna) y 07:01→19:00
   (diurna) para comparar contra `n_pt102`/`n_pt103` — cálculo propio de
-  vecindad, marcado siempre como tal en el título del gráfico ("cálculo
-  propio de vecindad, no la lógica de PLIA"). El filtro de CC ya aplicado en
+  emplazamiento compartido, marcado siempre como tal en el título del gráfico ("cálculo
+  propio de emplazamiento compartido, no la lógica de PLIA"). El filtro de CC ya aplicado en
   el pipeline evita que outliers de sensor (se encontró uno real, -11162mm en
-  `n_lluvia`) contaminen la suma. Ver `core.vecindad.calcular_ventaneo_automatica`.
+  `n_lluvia`) contaminen la suma. Ver `core.emplazamiento.calcular_ventaneo_automatica`.
 
 **4 gráficos resultantes** (antes eran 2): para cada variable física, un
 gráfico principal + uno secundario + sus 2 diferencias correspondientes — ver
-`ui.tab_vecindad.layout` (`g-vecindad-1/2/diff-1/diff-2`) y
-`ui.callbacks._figuras_vecindad_temperatura`/`_figuras_vecindad_precipitacion`.
+`ui.tab_emplazamiento.layout` (`g-emplazamiento-1/2/diff-1/diff-2`) y
+`ui.callbacks._figuras_emplazamiento_temperatura`/`_figuras_emplazamiento_precipitacion`.
 Detalle completo de la discusión y verificación en `tasks/todo.md`.
 
 ## Alcance — qué NO incluye (explícitamente fuera)
@@ -174,8 +174,8 @@ Detalle completo de la discusión y verificación en `tasks/todo.md`.
   automática-menos-convencional en el mismo instante exacto (horas
   sinópticas) — no es una estadística agregada; (b) usar extremos/acumulados
   diarios que SIGMA ya calculó para la automática (`n_maxat`/`n_minat`/
-  `n_dayrain`) — no es que vecindad los calcule; (c) el ventaneo 07h/19h de
-  precipitación, que sí es un cálculo propio de vecindad pero acotado a una
+  `n_dayrain`) — no es que emplazamiento compartido los calcule; (c) el ventaneo 07h/19h de
+  precipitación, que sí es un cálculo propio de emplazamiento compartido pero acotado a una
   suma simple con ventana fija, siempre marcado como tal. Ninguna de estas
   reemplaza ni aproxima el rigor estadístico de PLIA.
 - **Ninguna firma automática de divergencia** (tipo AF-REP) — decidido en la sesión
@@ -207,12 +207,12 @@ Correr app: python -m analizador_series.app  (puerto configurable, no usar 8053/
 ## Project Structure
 
 ```
-analizador_series/core/vecindad.py             → pares co-ubicados + equivalencia, nuevo
-analizador_series/ui/tab_vecindad.py           → layout de la pestaña, nuevo
+analizador_series/core/emplazamiento.py             → pares co-ubicados + equivalencia, nuevo
+analizador_series/ui/tab_emplazamiento.py           → layout de la pestaña, nuevo
 analizador_series/ui/callbacks.py              → callbacks de la pestaña (agregar)
 analizador_series/ui/charts.py                 → extender overlay_multivar (modo/color)
 data_ref/actualizar_geodatos.py                → extender (lat/lon/estado_operatividad)
-tests/core/test_vecindad.py                    → nuevo
+tests/core/test_emplazamiento.py                    → nuevo
 ```
 
 ## Code Style
@@ -224,14 +224,14 @@ solo donde el WHY no es obvio. Nombres en español, snake_case.
 def calcular_pares_colocados(umbral_m: float = 100.0) -> list[dict]:
     """
     [{"codigo_auto","codigo_conv","distancia_m"}], ordenado por distancia. Sin
-    indexado espacial (413×681 combinaciones, trivial) — ver docs/SPEC-vecindad.md
+    indexado espacial (413×681 combinaciones, trivial) — ver docs/SPEC-emplazamiento-compartido.md
     para la validación con datos reales (204 pares al momento de escribir esto).
     """
 ```
 
 ## Testing Strategy
 
-pytest, `tests/core/test_vecindad.py`, mismo patrón que `test_control_calidad.py`:
+pytest, `tests/core/test_emplazamiento.py`, mismo patrón que `test_control_calidad.py`:
 
 - `calcular_pares_colocados`: haversine contra distancias conocidas (casos
   sintéticos con coordenadas de distancia exacta calculable a mano), filtro de
@@ -253,16 +253,16 @@ pytest, `tests/core/test_vecindad.py`, mismo patrón que `test_control_calidad.p
 - **Never:** importar o depender de código de `SGR TEMPORALES/PLIA/`; calcular
   agregados propios (máximos/mínimos/acumulados) que dupliquen lo que PLIA ya hace
   con rigor — si hace falta esa rigurosidad, es señal de que la tarea pertenece a
-  PLIA, no a `vecindad`.
+  PLIA, no a `emplazamiento`.
 
 ## Success Criteria
 
 1. `data_ref/estaciones.db` tiene `latitud`/`longitud`/`estado_operatividad`
    poblados (script re-ejecutable, mismo patrón que `altitud`/`region_natural`).
-2. `core/vecindad.py` con `calcular_pares_colocados()` y el diccionario de
+2. `core/emplazamiento.py` con `calcular_pares_colocados()` y el diccionario de
    equivalencia (`temperatura`, `precipitacion`), cada uno con la lista de columnas
    convencionales disponibles y su etiqueta legible.
-3. Pestaña "Vecindad" nueva, independiente del selector compartido, con su propio
+3. Pestaña "Emplazamiento compartido" nueva, independiente del selector compartido, con su propio
    dropdown de pares (searchable, 204 opciones ordenadas por distancia) y su propio
    selector de periodo.
 4. Gráfico: línea continua de la automática + puntos (no líneas) de cada columna

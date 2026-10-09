@@ -330,7 +330,7 @@ def _fecha_hora(row: dict) -> tuple[str, str]:
     campo de hora — son diarias). Sin este fallback, todas las filas de esta
     segunda familia quedaban con fecha vacía y el deduplicado de abajo las
     colapsaba a una sola fila (bug real reproducido con 106077/100043 al
-    probar la pestaña vecindad — ver tests/descarga/).
+    probar la pestaña emplazamiento compartido — ver tests/descarga/).
     """
     fecha = (row.get("d_fecha_reg") or row.get("FECHA") or "")[:10]
     hora = (row.get("v_hora_reg") or "")[:5] or "00:00"
@@ -493,6 +493,22 @@ def _calcular_rango(fecha_inicio=None, fecha_fin=None, dias=7):
     return fecha_inicio, fecha_fin
 
 
+_PLACEHOLDERS_ENV = {"", "tu_usuario_sigma", "tu_password_aqui"}
+
+
+def _problema_credenciales(usuario: str, password: str) -> str | None:
+    """Mensaje de error si las credenciales de sigma/.env faltan o siguen con los
+    valores de ejemplo de .env.example; None si están completas. Evita que el
+    login de Selenium falle con un TimeoutException sin explicación."""
+    if usuario in _PLACEHOLDERS_ENV or password in _PLACEHOLDERS_ENV:
+        return (
+            f"Faltan credenciales de SIGMA en {SIGMA_ROOT / '.env'}. "
+            "Copia sigma/.env.example como sigma/.env y completa "
+            "SIGMA_USUARIO y SIGMA_PASSWORD con tu usuario de SIGMA."
+        )
+    return None
+
+
 def main():
     global _T0
     _T0 = time.time()
@@ -522,6 +538,11 @@ def main():
                              "estaciones CONVENCIONAL. Por defecto se excluyen "
                              "por no depender de instrumento.")
     args = parser.parse_args()
+
+    problema = _problema_credenciales(SIGMA_USUARIO, SIGMA_PASSWORD)
+    if problema:
+        log.error(problema)
+        sys.exit(1)
 
     fecha_ini, fecha_fin = _calcular_rango(args.fecha_inicio, args.fecha_fin)
     log.info(f"Periodo: {fecha_ini.strftime('%Y-%m-%d')} -> {fecha_fin.strftime('%Y-%m-%d')}")

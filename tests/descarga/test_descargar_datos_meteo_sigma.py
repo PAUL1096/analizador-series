@@ -1,11 +1,11 @@
 """
 Tests de descarga.descargar_datos_meteo_sigma._construir_csv.
 
-Bug real encontrado probando la pestaña vecindad (2026-09-30): SIGMA usa
+Bug real encontrado probando la pestaña emplazamiento compartido (2026-09-30): SIGMA usa
 nombres de campo de fecha DISTINTOS según la familia de datos —
 "d_fecha_reg"/"v_hora_reg" para automáticas e hidrológicas, pero "FECHA"
 (mayúsculas, sin hora) para meteorológicas convencionales diarias
-(temperatura n_tm*/precipitación n_pt*, justo las que necesita vecindad).
+(temperatura n_tm*/precipitación n_pt*, justo las que necesita emplazamiento compartido).
 _construir_csv solo buscaba "d_fecha_reg" — para las de familia "FECHA" el
 campo quedaba vacío en todas las filas, y el deduplicado por (fecha, hora)
 colapsaba TODO el período a una sola fila corrupta. Reproducido real contra
@@ -68,3 +68,19 @@ class TestConstruirCsvFamiliaFechaMayuscula:
         fechas = [f.split(",")[0] for f in filas]
         assert fechas == ["2026-06-01", "2026-06-02"]
         assert "" not in fechas
+
+
+class TestProblemaCredenciales:
+    """Clon nuevo sin sigma/.env (o con los valores de .env.example sin cambiar):
+    debe cortar con un mensaje claro antes de abrir Chrome."""
+
+    def test_vacias_da_mensaje_con_instruccion(self):
+        msg = dl._problema_credenciales("", "")
+        assert msg is not None and ".env.example" in msg
+
+    def test_valores_de_ejemplo_cuentan_como_faltantes(self):
+        assert dl._problema_credenciales("tu_usuario_sigma", "tu_password_aqui") is not None
+        assert dl._problema_credenciales("usuario_real", "tu_password_aqui") is not None
+
+    def test_completas_no_da_problema(self):
+        assert dl._problema_credenciales("usuario_real", "clave_real") is None

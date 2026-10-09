@@ -1,8 +1,8 @@
 """
-Vecindad — pares co-ubicados automática↔convencional (<umbral_m) y equivalencia
-de variables físicas entre ambas, para la pestaña "Vecindad" (inspección visual,
+Emplazamiento compartido — pares co-ubicados automática↔convencional (<umbral_m) y equivalencia
+de variables físicas entre ambas, para la pestaña "Emplazamiento compartido" (inspección visual,
 sin estadística de comparación — eso es PLIA, proyecto separado. Ver
-docs/SPEC-vecindad.md).
+docs/SPEC-emplazamiento-compartido.md).
 
 Sin caché en disco: 413×681 combinaciones es trivial (<1s), no amerita el
 patrón de invalidación por versión de lógica que sí usa control_calidad.py
@@ -23,6 +23,12 @@ _PALETA_EXTRA_SERIES = ["#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f"]
 
 _OFFSET_DIARIA = pd.Timedelta(hours=12)
 
+# Clasificaciones hidrológicas (columna `clasificacion` de estaciones.db): no se
+# comparan — decisión del usuario 2026-10-09. EHMA (hidrometeorológica
+# automática) NO está acá a propósito: mide variables meteorológicas y se
+# compara con su convencional meteorológica (ej. PLU).
+CLASIFICACIONES_EXCLUIDAS = frozenset({"EHA", "HLG", "HLM"})
+
 # Catálogo oficial de SIGMA (confirmado en Análisis -> DataMonitor, 2026-09-30,
 # ver tasks/todo.md) — cada columna convencional es "diaria" (máx/mín/total del
 # día, sin hora puntual real) o "puntual" (lectura exacta a una hora sinóptica:
@@ -32,7 +38,7 @@ _OFFSET_DIARIA = pd.Timedelta(hours=12)
 EQUIVALENCIA_VARIABLES: dict[str, dict] = {
     "temperatura": {
         "automatica": "n_airtemp",
-        # Extremos diarios REALES de la automática (no calculados por vecindad)
+        # Extremos diarios REALES de la automática (no calculados por emplazamiento compartido)
         # — mismo espíritu que n_tm102/103 de la convencional. Si faltan, hay
         # respaldo calculado desde n_airtemp (ver calcular_extremos_diarios_automatica).
         "automatica_extremos_diarios": {"maxima": "n_maxat", "minima": "n_minat"},
@@ -95,17 +101,19 @@ def calcular_pares_colocados(umbral_m: float = 100.0, ruta_db=CATALOGO_DB) -> li
     cruza AUTOMATICA con CONVENCIONAL (nunca misma categoría); una automática
     puede aparecer en varios pares si tiene varias candidatas dentro del
     umbral — no se queda solo con la más cercana, el spec pide la lista
-    completa para que el usuario filtre en la UI.
+    completa para que el usuario filtre en la UI. Excluye estaciones
+    hidrológicas (ver CLASIFICACIONES_EXCLUIDAS).
     """
     con = sqlite3.connect(ruta_db)
     try:
         filas = con.execute(
-            "SELECT codigo, categoria, latitud, longitud FROM estaciones "
+            "SELECT codigo, categoria, latitud, longitud, clasificacion FROM estaciones "
             "WHERE latitud IS NOT NULL AND longitud IS NOT NULL"
         ).fetchall()
     finally:
         con.close()
 
+    filas = [f[:4] for f in filas if (f[4] or "").upper() not in CLASIFICACIONES_EXCLUIDAS]
     automaticas = [f for f in filas if (f[1] or "").upper() == "AUTOMATICA"]
     convencionales = [f for f in filas if (f[1] or "").upper() == "CONVENCIONAL"]
 
@@ -188,8 +196,8 @@ def calcular_diferencias_puntuales(
     real de la automática con el que comparar directo, sin calcular nada.
 
     Las "diaria" (máx/mín/total) NUNCA generan diferencia acá: eso exigiría
-    que vecindad calculara su propio agregado diario de la automática, y esa
-    rigurosidad es tarea de PLIA (límite explícito de docs/SPEC-vecindad.md,
+    que emplazamiento compartido calculara su propio agregado diario de la automática, y esa
+    rigurosidad es tarea de PLIA (límite explícito de docs/SPEC-emplazamiento-compartido.md,
     confirmado con el usuario antes de agregar este panel — ver tasks/todo.md).
     """
     if df_conv.empty or serie_automatica.empty:
@@ -379,7 +387,7 @@ def calcular_ventaneo_automatica(df_auto: pd.DataFrame) -> dict[str, pd.Series]:
     """
     {"diurna": serie, "nocturna": serie} — sumas de n_lluvia en las ventanas
     07h->19h y 19h->07h, para comparar contra n_pt103/n_pt102. Cálculo propio
-    de vecindad (no la lógica rigurosa de PLIA/comparacion_core.py) —
+    de emplazamiento compartido (no la lógica rigurosa de PLIA/comparacion_core.py) —
     autorizado explícitamente por el usuario tras confirmar la física real
     del proceso de observación convencional (ver tasks/todo.md, Ronda 2).
     """

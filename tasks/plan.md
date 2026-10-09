@@ -1,12 +1,12 @@
-# Implementation Plan: módulo vecindad
+# Implementation Plan: módulo emplazamiento compartido
 
-Spec: `docs/SPEC-vecindad.md` (aprobado 2026-09-30). Reemplaza el plan anterior
+Spec: `docs/SPEC-emplazamiento-compartido.md` (aprobado 2026-09-30). Reemplaza el plan anterior
 (control-calidad, 10/10 tareas completas, ver `tasks/todo.md` git history si hace
 falta consultarlo).
 
 ## Overview
 
-Pestaña nueva "Vecindad" que superpone, para un par de estaciones co-ubicadas
+Pestaña nueva "Emplazamiento compartido" que superpone, para un par de estaciones co-ubicadas
 (automática + convencional, <100m), la serie continua de la automática con los
 puntos discretos de la convencional — temperatura o precipitación, sin ninguna
 estadística de comparación (eso es PLIA, proyecto separado con su propio
@@ -25,7 +25,7 @@ de validación.
   código necesiten "operatividad", se usa la columna `activa` ya existente
   (aunque el spec la deja fuera del filtro de la UI: "sin filtro de solo
   OPERATIVA en el dropdown").
-- **`core/vecindad.py` consulta `estaciones.db` directamente** (mismo patrón
+- **`core/emplazamiento.py` consulta `estaciones.db` directamente** (mismo patrón
   de conexión sqlite que `data_ref/actualizar_geodatos.py`), en vez de pasar
   por `data_loader.metadata_estaciones()`. Esa función devuelve un DataFrame
   pensado para series ya cargadas (altitud/region_natural, no lat/lon/
@@ -45,19 +45,19 @@ de validación.
   `callbacks.py:865` que no pasa color). Cuando `modo="markers"` no se debe
   pasar `line=...` a la traza (Plotly ignora `line` en modo markers pero por
   claridad se arma el `dict` de kwargs condicionalmente).
-- **`tab_vecindad` no toca `dd-codigos`/`dt-periodo` compartidos.** Sigue el
+- **`tab_emplazamiento` no toca `dd-codigos`/`dt-periodo` compartidos.** Sigue el
   patrón ya usado por `renderizar_tab` (Estadística/Comparar/Vista cruda
   reciben sus dropdowns ya poblados vía `State`, evitando la carrera de
-  callbacks documentada en el comentario de `callbacks.py:351-355`) — Vecindad
+  callbacks documentada en el comentario de `callbacks.py:351-355`) — Emplazamiento compartido
   puebla su propio dropdown de pares directamente desde
-  `vecindad.calcular_pares_colocados()`, sin depender de qué haya elegido el
+  `emplazamiento.calcular_pares_colocados()`, sin depender de qué haya elegido el
   usuario arriba.
 
 ## Task List
 
 ### Phase 1: Datos base (geodatos + core puro)
 - [ ] Task 1: Latitud/longitud en estaciones.db
-- [ ] Task 2: `core/vecindad.py` — pares co-ubicados + equivalencia de variables
+- [ ] Task 2: `core/emplazamiento.py` — pares co-ubicados + equivalencia de variables
 
 ### Checkpoint: Fase 1
 - [ ] `pytest tests/` completo en verde (167 + nuevos)
@@ -66,15 +66,15 @@ de validación.
 
 ### Phase 2: Visualización (chart + UI)
 - [ ] Task 3: Extender `overlay_multivar` (modo markers + color por serie)
-- [ ] Task 4: `ui/tab_vecindad.py` — layout de la pestaña
+- [ ] Task 4: `ui/tab_emplazamiento.py` — layout de la pestaña
 
 ### Checkpoint: Fase 2
 - [ ] `pytest tests/` completo en verde
 - [ ] Layout renderiza standalone (sin callbacks aún) sin excepciones
 
 ### Phase 3: Integración (callbacks + CC)
-- [ ] Task 5: Callbacks de Vecindad — cargar par, graficar, filtro de periodo
-- [ ] Task 6: Checkbox de CC en Vecindad
+- [ ] Task 5: Callbacks de Emplazamiento compartido — cargar par, graficar, filtro de periodo
+- [ ] Task 6: Checkbox de CC en Emplazamiento compartido
 
 ### Checkpoint: Completo
 - [ ] `pytest tests/` completo en verde (167 + todos los nuevos)
@@ -82,7 +82,7 @@ de validación.
       real, ver la línea continua de la automática + puntos de la
       convencional distinguibles, cambiar variable (temperatura↔precipitación),
       cambiar periodo, activar/desactivar CC
-- [ ] Success Criteria 1-7 de `docs/SPEC-vecindad.md` verificados por
+- [ ] Success Criteria 1-7 de `docs/SPEC-emplazamiento-compartido.md` verificados por
       inspección (ninguna estadística de comparación, ninguna dependencia de
       `PLIA/`, ninguna escritura fuera de `Analizador-Series/`)
 
@@ -91,13 +91,13 @@ de validación.
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | Ningún CSV convencional real descargado localmente en este momento para probar en navegador (mismo bloqueo documentado en `tasks/todo.md` de control-calidad, Fase 2/3) | Medio — no se puede hacer smoke test end-to-end con datos reales de convencional | Los 204 pares vienen de `estaciones.db` (metadata, no requiere CSV descargado); si al momento de probar no hay CSV de la convencional del par elegido, documentar el bloqueo igual que se hizo en control-calidad (no es bug de esta tarea) y verificar con datos sintéticos + al menos un par cuya convencional sí tenga CSV descargado |
-| `overlay_multivar` es compartida con Comparar — un cambio mal hecho rompe una pestaña ya en producción | Alto si se rompe, bajo si se sigue el plan | Task 3 lleva test explícito de "comportamiento default sin `modo`/`color` no cambia" antes de tocar `tab_vecindad`/callbacks que dependen de ella |
-| Diccionario de equivalencia de variables convencionales fue confirmado con un solo CSV real (SAN REGIS, 104098) — otras convencionales podrían tener columnas distintas | Bajo (el spec ya lo asume: "una estación puede no tener alguna") | `core/vecindad.py` debe omitir sin error cualquier columna de la equivalencia que no exista en el CSV real de esa estación puntual — mismo patrón defensivo que `control_calidad.tiene_regla_cc` |
+| `overlay_multivar` es compartida con Comparar — un cambio mal hecho rompe una pestaña ya en producción | Alto si se rompe, bajo si se sigue el plan | Task 3 lleva test explícito de "comportamiento default sin `modo`/`color` no cambia" antes de tocar `tab_emplazamiento`/callbacks que dependen de ella |
+| Diccionario de equivalencia de variables convencionales fue confirmado con un solo CSV real (SAN REGIS, 104098) — otras convencionales podrían tener columnas distintas | Bajo (el spec ya lo asume: "una estación puede no tener alguna") | `core/emplazamiento.py` debe omitir sin error cualquier columna de la equivalencia que no exista en el CSV real de esa estación puntual — mismo patrón defensivo que `control_calidad.tiene_regla_cc` |
 
 ## Open Questions
 
 Ninguna bloqueante — el spec ya cerró todas las asunciones (ver su sección
 "Open Questions"). Los dos hallazgos de esta sesión de planeamiento
-(`estado_operatividad` = `activa` ya existente; `core/vecindad.py` no reusa
+(`estado_operatividad` = `activa` ya existente; `core/emplazamiento.py` no reusa
 `metadata_estaciones`) están resueltos arriba en Architecture Decisions, no
 requieren decisión del usuario.

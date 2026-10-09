@@ -1,12 +1,12 @@
 """
-Pestaña Vecindad — overlay visual de una estación automática con su
+Pestaña Emplazamiento compartido — overlay visual de una estación automática con su
 convencional co-ubicada (<100m), para inspección rápida (¿cuentan la misma
 historia?). Sin estadística de comparación (eso es PLIA, proyecto separado).
-Ver docs/SPEC-vecindad.md.
+Ver docs/SPEC-emplazamiento-compartido.md.
 
 Independiente del selector compartido (dd-codigos/dt-periodo arriba): el
-dropdown de pares se puebla directo desde core.vecindad.calcular_pares_colocados,
-y el periodo es propio de esta pestaña (dt-periodo-vecindad) — mismo motivo que
+dropdown de pares se puebla directo desde core.emplazamiento.calcular_pares_colocados,
+y el periodo es propio de esta pestaña (dt-periodo-emplazamiento) — mismo motivo que
 ya documentó ui/callbacks.renderizar_tab para Estadística/Comparar/Vista cruda
 (evitar la carrera de callbacks contra dd-codigos).
 """
@@ -24,9 +24,9 @@ VARIABLE_OPTIONS = [
 # D = día calendario; t = instante horario. "real" = dato que SIGMA ya calculó
 # y reporta (no lo calcula el Analizador); "calculado" = lo arma el Analizador
 # solo cuando falta el real, siempre rotulado así también en la leyenda del
-# gráfico. Ver core.vecindad y docs/SPEC-vecindad.md para el detalle completo.
+# gráfico. Ver core.emplazamiento y docs/SPEC-emplazamiento-compartido.md para el detalle completo.
 # Versión corta (vive al lado del selector de periodo) — cambia según la
-# variable física elegida, ver ui.callbacks.actualizar_disclaimer_vecindad.
+# variable física elegida, ver ui.callbacks.actualizar_disclaimer_emplazamiento.
 DISCLAIMER_TEMPERATURA_MD = """
 ℹ️ **Máx/mín diaria:** real (`n_maxat`/`n_minat`) o, si falta, el extremo de
 los valores ya agregados por hora (`n_maxath`/`n_minath`) — nunca `n_airtemp`:
@@ -78,7 +78,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                         html.Label("Par co-ubicado (automática ↔ convencional):",
                                    className="fw-bold"),
                         dcc.Dropdown(
-                            id="dd-vecindad-par", options=pares_opts or [],
+                            id="dd-emplazamiento-par", options=pares_opts or [],
                             value=par_value, clearable=False, searchable=True,
                             placeholder="Elige un par por código o distancia…",
                         ),
@@ -86,7 +86,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                     dbc.Col([
                         html.Label("Variable física:", className="fw-bold"),
                         dbc.RadioItems(
-                            id="rb-vecindad-variable", options=VARIABLE_OPTIONS,
+                            id="rb-emplazamiento-variable", options=VARIABLE_OPTIONS,
                             value="temperatura",
                             className="btn-group", inputClassName="btn-check",
                             labelClassName="btn btn-outline-primary btn-sm",
@@ -96,7 +96,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                     dbc.Col([
                         html.Label("Periodo:", className="fw-bold"),
                         dcc.DatePickerRange(
-                            id="dt-periodo-vecindad",
+                            id="dt-periodo-emplazamiento",
                             display_format="YYYY-MM-DD",
                             clearable=True,
                         ),
@@ -114,7 +114,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                     dbc.Col(
                         html.Div(
                             dcc.Markdown(DISCLAIMER_TEMPERATURA_MD, className="small text-muted mb-0"),
-                            id="div-vecindad-disclaimer", className="vecindad-disclaimer",
+                            id="div-emplazamiento-disclaimer", className="emplazamiento-disclaimer",
                         ),
                     ),
                 ], className="g-2 mt-1"),
@@ -123,7 +123,7 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                     dbc.Col([
                         html.Label("Control de calidad (CC) a incluir:", className="fw-bold"),
                         dcc.Checklist(
-                            id="cl-cc-vecindad",
+                            id="cl-cc-emplazamiento",
                             options=[
                                 {"label": " BUENO",  "value": "BUENO"},
                                 {"label": " DUDOSO", "value": "DUDOSO"},
@@ -136,36 +136,36 @@ def layout(pares_opts: list[dict] | None = None, par_value: str | None = None) -
                     ], md=6),
                 ], className="g-2 mt-2"),
 
-                html.Div(id="div-vecindad-mensaje", className="text-muted small mt-2"),
+                html.Div(id="div-emplazamiento-mensaje", className="text-muted small mt-2"),
             ]),
             className="shadow-sm mb-3",
         ),
 
         # 4 gráficos genéricos — el callback decide qué va en cada uno según
-        # la variable física elegida (Ronda 2, ver docs/SPEC-vecindad.md):
+        # la variable física elegida (Ronda 2, ver docs/SPEC-emplazamiento-compartido.md):
         #   Temperatura:   [1] horaria + horas sinópticas · [2] máx/mín diaria
         #                  [diff-1] dif. horas sinópticas · [diff-2] dif. diaria
         #   Precipitación: [1] acumulado diario           · [2] ventaneo 07h/19h
         #                  [diff-1] dif. acumulado diario · [diff-2] dif. ventaneo
         dbc.Card(
-            dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-1", config={"displaylogo": False}))]),
+            dbc.CardBody([dcc.Loading(dcc.Graph(id="g-emplazamiento-1", config={"displaylogo": False}))]),
             className="shadow-sm mb-3",
         ),
         dbc.Card(
-            dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-2", config={"displaylogo": False}))]),
+            dbc.CardBody([dcc.Loading(dcc.Graph(id="g-emplazamiento-2", config={"displaylogo": False}))]),
             className="shadow-sm mb-3",
         ),
         dbc.Row([
             dbc.Col(
                 dbc.Card(
-                    dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-diff-1", config={"displaylogo": False}))]),
+                    dbc.CardBody([dcc.Loading(dcc.Graph(id="g-emplazamiento-diff-1", config={"displaylogo": False}))]),
                     className="shadow-sm mb-3",
                 ),
                 md=6,
             ),
             dbc.Col(
                 dbc.Card(
-                    dbc.CardBody([dcc.Loading(dcc.Graph(id="g-vecindad-diff-2", config={"displaylogo": False}))]),
+                    dbc.CardBody([dcc.Loading(dcc.Graph(id="g-emplazamiento-diff-2", config={"displaylogo": False}))]),
                     className="shadow-sm mb-3",
                 ),
                 md=6,

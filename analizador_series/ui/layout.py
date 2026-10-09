@@ -116,7 +116,7 @@ def tabs_principales() -> dbc.Tabs:
             dbc.Tab(label="Panorama", tab_id="tab-panorama"),
             dbc.Tab(label="Comparar", tab_id="tab-comparar"),
             dbc.Tab(label="Vista cruda", tab_id="tab-crudo"),
-            dbc.Tab(label="Vecindad", tab_id="tab-vecindad"),
+            dbc.Tab(label="Emplazamiento compartido", tab_id="tab-emplazamiento"),
             dbc.Tab(label="Estadística", tab_id="tab-estadistica"),
         ],
         className="mb-3",

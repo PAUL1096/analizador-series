@@ -3,13 +3,18 @@ REM Lanzador de descarga de datos meteorologicos por estacion (SIGMA-DRD).
 REM %~dp0 = carpeta de este .bat = raiz del proyecto -> cwd correcto para el script.
 cd /d "%~dp0"
 
+REM Python del env conda "analizador_series"; si no esta en la ruta por defecto
+REM (otra PC u otra instalacion de conda), usa el python activo en el PATH.
+set "PY=%USERPROFILE%\.conda\envs\analizador_series\python.exe"
+if not exist "%PY%" set "PY=python"
+
 REM ─────────────────────────────────────────────────────────────────────────
 REM  Si se pasan argumentos directamente, ejecutar sin preguntar.
 REM  Ejemplo:
 REM    Descargar_Datos_Meteo.bat --codigo 114066 --headless
 REM ─────────────────────────────────────────────────────────────────────────
 if not "%~1"=="" (
-    "C:\Users\drd06\.conda\envs\analizador_series\python.exe" descarga\descargar_datos_meteo_sigma.py %*
+    "%PY%" descarga\descargar_datos_meteo_sigma.py %*
     goto fin
 )
 
@@ -37,7 +42,7 @@ REM ── MODO PUNTUAL: por codigo ──────────────�
 :modo_puntual
 echo.
 echo   Ingresa los codigos separados por espacios (mira el codigo en
-echo   data_ref/estaciones.db o en la pestana Vecindad del Analizador).
+echo   data_ref/estaciones.db o en la pestana Emplazamiento compartido del Analizador).
 echo   Ejemplo:  114066   (o varios:  114066 114140)
 echo.
 SET /P CODIGOS="  Codigos: "
@@ -90,7 +95,7 @@ echo   Iniciando descarga con:  %ARGS%
 echo  --------------------------------------------------------------
 echo.
 
-"C:\Users\drd06\.conda\envs\analizador_series\python.exe" descarga\descargar_datos_meteo_sigma.py %ARGS%
+"%PY%" descarga\descargar_datos_meteo_sigma.py %ARGS%
 
 :fin
 echo.

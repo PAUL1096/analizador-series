@@ -1,6 +1,6 @@
 """
 Tests de data_ref.actualizar_geodatos: agrega/refresca altitud, región natural
-y (Task 1 de docs/SPEC-vecindad.md) latitud/longitud en estaciones.db a partir
+y (Task 1 de docs/SPEC-emplazamiento-compartido.md) latitud/longitud en estaciones.db a partir
 del export "Georeferencias" de SIGMA. Ver tasks/todo.md Task 1.
 """
 from __future__ import annotations

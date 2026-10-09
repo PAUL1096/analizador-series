@@ -1,5 +1,5 @@
 """
-Tests de ui.charts.overlay_multivar: extensión para vecindad (Task 3 de
+Tests de ui.charts.overlay_multivar: extensión para emplazamiento compartido (Task 3 de
 tasks/todo.md) — extra_series gana "modo" (markers|lines) y "color" por
 entrada, sin romper el uso actual en Comparar (callbacks.py:865, que no pasa
 ninguna de las dos claves nuevas).
@@ -77,11 +77,11 @@ class TestOverlayMultivarModoMarkers:
         assert fig.data[-1].marker.symbol == "diamond"
 
 
-class TestPanelDiferenciasVecindad:
+class TestPanelDiferenciasEmplazamiento:
     def test_una_traza_de_barras_por_entrada_con_su_color(self):
         idx = pd.date_range("2026-01-01", periods=3, freq="D")
         serie = pd.Series([0.5, -0.3, 1.1], index=idx)
-        fig = charts.panel_diferencias_vecindad(
+        fig = charts.panel_diferencias_emplazamiento(
             [{"nombre": "07h", "serie": serie, "color": "#d62728"}]
         )
         assert fig.data[0].type == "bar"
@@ -92,14 +92,14 @@ class TestPanelDiferenciasVecindad:
         idx = pd.date_range("2026-01-01", periods=2, freq="D")
         s1 = pd.Series([1.0, 2.0], index=idx)
         s2 = pd.Series([-1.0, -2.0], index=idx)
-        fig = charts.panel_diferencias_vecindad([
+        fig = charts.panel_diferencias_emplazamiento([
             {"nombre": "07h", "serie": s1, "color": "#111111"},
             {"nombre": "19h", "serie": s2, "color": "#222222"},
         ])
         assert len(fig.data) == 2
 
     def test_lista_vacia_no_lanza_error(self):
-        fig = charts.panel_diferencias_vecindad([])
+        fig = charts.panel_diferencias_emplazamiento([])
         assert fig is not None
 
 

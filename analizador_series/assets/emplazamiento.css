@@ -1,22 +1,22 @@
-/* Disclaimer de vecindad (ver ui/tab_vecindad.py): dcc.Markdown envuelve los
+/* Disclaimer de emplazamiento compartido (ver ui/tab_emplazamiento.py): dcc.Markdown envuelve los
    nombres de variable entre backticks en <code>, y el tema de Bootstrap les
    fija un font-size en rem (relativo a la raíz del documento) en vez de em
    (relativo al padre) — por eso no se achican junto con el texto ".small"
    que los rodea y terminan viéndose más grandes que la prosa. Forzamos que
    hereden el tamaño real del texto que los contiene. */
-.vecindad-disclaimer code {
+.emplazamiento-disclaimer code {
     font-size: inherit;
 }
 
 /* dcc.Markdown renderiza cada párrafo como un <p> independiente dentro del
-   div.vecindad-disclaimer; el `mb-0` que tiene ese div solo afecta al propio
+   div.emplazamiento-disclaimer; el `mb-0` que tiene ese div solo afecta al propio
    div, no a los <p> internos — cada uno se queda con el margin-bottom:16px
    por defecto de Bootstrap, de ahí el aire de más entre los 3 bloques del
    disclaimer. Verificado con getComputedStyle (2026-10-01). */
-.vecindad-disclaimer p {
+.emplazamiento-disclaimer p {
     margin-bottom: 0.35rem;
 }
 
-.vecindad-disclaimer p:last-child {
+.emplazamiento-disclaimer p:last-child {
     margin-bottom: 0;
 }

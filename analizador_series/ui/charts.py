@@ -743,12 +743,12 @@ def overlay_multivar(df: pd.DataFrame, var1: str | None, var2: str | None,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Panel de diferencias (vecindad) — solo para variables "puntual" (07h/13h/19h),
-# ver core.vecindad.calcular_diferencias_puntuales. Nunca para "diaria"
+# Panel de diferencias (emplazamiento compartido) — solo para variables "puntual" (07h/13h/19h),
+# ver core.emplazamiento.calcular_diferencias_puntuales. Nunca para "diaria"
 # (máx/mín/total): eso exigiría calcular un agregado propio, tarea de PLIA.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def panel_diferencias_vecindad(diferencias: list[dict], titulo: str = "") -> go.Figure:
+def panel_diferencias_emplazamiento(diferencias: list[dict], titulo: str = "") -> go.Figure:
     """
     diferencias: [{"nombre","serie","color"}] — una barra por lectura,
     convencional menos automática, mismo color que el punto correspondiente
@@ -776,7 +776,7 @@ def panel_diferencias_vecindad(diferencias: list[dict], titulo: str = "") -> go.
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Comparación de series diarias (vecindad) — máx/mín de temperatura,
+# Comparación de series diarias (emplazamiento compartido) — máx/mín de temperatura,
 # acumulado de precipitación. A diferencia de overlay_multivar, ninguna serie
 # es "la principal": todas son puntos (o líneas) de la misma jerarquía.
 # ══════════════════════════════════════════════════════════════════════════════
@@ -784,7 +784,7 @@ def panel_diferencias_vecindad(diferencias: list[dict], titulo: str = "") -> go.
 def serie_puntos_diarios(series: list[dict], titulo: str = "", yaxis_title: str = "") -> go.Figure:
     """
     series: [{"nombre","serie","color","modo"?,"symbol"?}] — modo default
-    "markers" (default también usado por panel_diferencias_vecindad: puntos
+    "markers" (default también usado por panel_diferencias_emplazamiento: puntos
     diarios, sin conectar series de fuentes distintas con una línea que
     sugeriría continuidad falsa entre ellas).
     """

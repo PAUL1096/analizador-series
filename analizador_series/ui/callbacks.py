@@ -20,10 +20,10 @@ from dash import Input, Output, State, callback, no_update, dash_table, html, dc
 from analizador_series.config import COLOR_FLAG
 from analizador_series.core import (
     control_calidad, data_loader, series_derivadas, distribuciones, detector_eventos,
-    deteccion_afectaciones, consistencia, panorama, dias_efectivos, vecindad,
+    deteccion_afectaciones, consistencia, panorama, dias_efectivos, emplazamiento,
 )
 from analizador_series.ui import (
-    charts, tab_estadistica, tab_panorama, tab_comparar, tab_crudo, tab_vecindad,
+    charts, tab_estadistica, tab_panorama, tab_comparar, tab_crudo, tab_emplazamiento,
 )
 
 
@@ -370,13 +370,13 @@ def renderizar_tab(active_tab, codigos):
     if active_tab == "tab-crudo":
         estacion_opts, estacion_value = _opciones_estacion_comparar(codigos)
         return tab_crudo.layout(estacion_opts=estacion_opts, estacion_value=estacion_value)
-    if active_tab == "tab-vecindad":
-        pares = vecindad.calcular_pares_colocados()
+    if active_tab == "tab-emplazamiento":
+        pares = emplazamiento.calcular_pares_colocados()
         codigos_par = {c for p in pares for c in (p["codigo_auto"], p["codigo_conv"])}
         meta = data_loader.metadata_estaciones(list(codigos_par)) if codigos_par else pd.DataFrame()
         nombres = _mapa_nombre_clasificacion(meta)
-        pares_opts = tab_vecindad.opciones_pares(pares, nombres)
-        return tab_vecindad.layout(pares_opts=pares_opts)
+        pares_opts = tab_emplazamiento.opciones_pares(pares, nombres)
+        return tab_emplazamiento.layout(pares_opts=pares_opts)
     variable_opts, variable_value = _opciones_variable(codigos)
     return tab_estadistica.layout(variable_opts=variable_opts, variable_value=variable_value)
 
@@ -898,22 +898,22 @@ def actualizar_comparar(preset_id, estacion, var1, var2, datos_crudos):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Vecindad: overlay automática↔convencional co-ubicada, independiente del
+# Emplazamiento compartido: overlay automática↔convencional co-ubicada, independiente del
 # selector compartido (dd-codigos/dt-periodo) — carga directo las 2 estaciones
-# del par elegido, con su propio periodo (dt-periodo-vecindad).
+# del par elegido, con su propio periodo (dt-periodo-emplazamiento).
 # ══════════════════════════════════════════════════════════════════════════════
 
 @callback(
-    Output("div-vecindad-disclaimer", "children"),
-    Input("rb-vecindad-variable", "value"),
+    Output("div-emplazamiento-disclaimer", "children"),
+    Input("rb-emplazamiento-variable", "value"),
 )
-def actualizar_disclaimer_vecindad(variable_fisica):
-    md = (tab_vecindad.DISCLAIMER_PRECIPITACION_MD if variable_fisica == "precipitacion"
-          else tab_vecindad.DISCLAIMER_TEMPERATURA_MD)
+def actualizar_disclaimer_emplazamiento(variable_fisica):
+    md = (tab_emplazamiento.DISCLAIMER_PRECIPITACION_MD if variable_fisica == "precipitacion"
+          else tab_emplazamiento.DISCLAIMER_TEMPERATURA_MD)
     return dcc.Markdown(md, className="small text-muted mb-0")
 
 
-def _dividir_par_vecindad(par_value: str | None) -> tuple[str | None, str | None]:
+def _dividir_par_emplazamiento(par_value: str | None) -> tuple[str | None, str | None]:
     if not par_value or "|" not in par_value:
         return None, None
     cod_auto, cod_conv = par_value.split("|", 1)
@@ -946,19 +946,19 @@ def _etiqueta_estacion(codigo: str, nombres: dict[str, str]) -> str:
     return f"{codigo} · {nombre}" if nombre else codigo
 
 
-def _titulo_par_vecindad(cod_auto: str, cod_conv: str, nombres: dict[str, str]) -> str:
+def _titulo_par_emplazamiento(cod_auto: str, cod_conv: str, nombres: dict[str, str]) -> str:
     return f"{_etiqueta_estacion(cod_auto, nombres)} ↔ {_etiqueta_estacion(cod_conv, nombres)}"
 
 
 @callback(
-    Output("dt-periodo-vecindad", "min_date_allowed"),
-    Output("dt-periodo-vecindad", "max_date_allowed"),
-    Output("dt-periodo-vecindad", "start_date"),
-    Output("dt-periodo-vecindad", "end_date"),
-    Input("dd-vecindad-par", "value"),
+    Output("dt-periodo-emplazamiento", "min_date_allowed"),
+    Output("dt-periodo-emplazamiento", "max_date_allowed"),
+    Output("dt-periodo-emplazamiento", "start_date"),
+    Output("dt-periodo-emplazamiento", "end_date"),
+    Input("dd-emplazamiento-par", "value"),
 )
-def actualizar_periodo_vecindad(par_value):
-    cod_auto, cod_conv = _dividir_par_vecindad(par_value)
+def actualizar_periodo_emplazamiento(par_value):
+    cod_auto, cod_conv = _dividir_par_emplazamiento(par_value)
     if not cod_auto:
         return None, None, None, None
 
@@ -981,12 +981,12 @@ _COLOR_VENTANA_DIURNA = "#ff7f0e"
 _NOTA_CALCULADO = " (calculada)"
 
 
-def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
+def _figuras_emplazamiento_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
     mensajes = []
-    titulo_par = _titulo_par_vecindad(cod_auto, cod_conv, nombres)
-    metadata = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["convencional"]
-    var_auto = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica"]
-    extra_todas = vecindad.armar_extra_series_convencional(df_conv, "temperatura")
+    titulo_par = _titulo_par_emplazamiento(cod_auto, cod_conv, nombres)
+    metadata = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["convencional"]
+    var_auto = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["automatica"]
+    extra_todas = emplazamiento.armar_extra_series_convencional(df_conv, "temperatura")
     colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
 
     # Gráfico 1: horaria continua + horas sinópticas (07h/13h/19h)
@@ -1009,7 +1009,7 @@ def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, v
     # respaldo n_maxath/n_minath) y de la convencional (n_tm102/n_tm103). Si
     # falta de cualquiera de los dos lados, se menciona explícitamente (no se
     # omite en silencio).
-    extremos = vecindad.calcular_extremos_diarios_automatica(df_auto)
+    extremos = emplazamiento.calcular_extremos_diarios_automatica(df_auto)
     puntos2 = [e for e in extra_todas if e["tipo"] == "diaria"]
     for col, meta in metadata.items():
         if meta["tipo"] == "diaria" and not (col in df_conv.columns and df_conv[col].notna().any()):
@@ -1020,8 +1020,8 @@ def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, v
     ):
         fuente = extremos.get(clave)
         if fuente is None:
-            col_real = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_diarios"][clave]
-            col_horario = vecindad.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_horarios_agregados"][clave]
+            col_real = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_diarios"][clave]
+            col_horario = emplazamiento.EQUIVALENCIA_VARIABLES["temperatura"]["automatica_extremos_horarios_agregados"][clave]
             mensajes.append(f"{cod_auto} no tiene {etiqueta.split(' ')[0].lower()} diaria disponible "
                              f"(ni {col_real} ni {col_horario}).")
             continue
@@ -1035,32 +1035,32 @@ def _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, v
 
     # Diferencias (convencional − automática)
     serie_auto_cont = df_auto[var_auto] if var_auto in df_auto.columns else pd.Series(dtype=float)
-    dif_puntual = vecindad.calcular_diferencias_puntuales(serie_auto_cont, df_conv, "temperatura")
+    dif_puntual = emplazamiento.calcular_diferencias_puntuales(serie_auto_cont, df_conv, "temperatura")
     lista_diff1 = [
         {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
         for col, s in dif_puntual.items() if not s.empty
     ]
-    fig_diff1 = charts.panel_diferencias_vecindad(lista_diff1, titulo="Dif. horas sinópticas (conv.−auto.)")
+    fig_diff1 = charts.panel_diferencias_emplazamiento(lista_diff1, titulo="Dif. horas sinópticas (conv.−auto.)")
 
-    dif_diaria = vecindad.calcular_diferencias_diarias_temperatura(df_auto, df_conv)
+    dif_diaria = emplazamiento.calcular_diferencias_diarias_temperatura(df_auto, df_conv)
     lista_diff2 = [
         {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
         for col, s in dif_diaria.items() if not s.empty
     ]
-    fig_diff2 = charts.panel_diferencias_vecindad(lista_diff2, titulo="Dif. máx/mín diaria (conv.−auto.)")
+    fig_diff2 = charts.panel_diferencias_emplazamiento(lista_diff2, titulo="Dif. máx/mín diaria (conv.−auto.)")
 
     return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
 
 
-def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
+def _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres):
     mensajes = []
-    titulo_par = _titulo_par_vecindad(cod_auto, cod_conv, nombres)
-    metadata = vecindad.EQUIVALENCIA_VARIABLES["precipitacion"]["convencional"]
-    extra_todas = vecindad.armar_extra_series_convencional(df_conv, "precipitacion")
+    titulo_par = _titulo_par_emplazamiento(cod_auto, cod_conv, nombres)
+    metadata = emplazamiento.EQUIVALENCIA_VARIABLES["precipitacion"]["convencional"]
+    extra_todas = emplazamiento.armar_extra_series_convencional(df_conv, "precipitacion")
     colores_por_columna = {e["columna"]: e["color"] for e in extra_todas}
 
     # Gráfico 1: acumulado diario — n_pt101 realineado +1 día (ver
-    # core.vecindad, desfase_dias_cierre) junto al acumulado real/calculado
+    # core.emplazamiento, desfase_dias_cierre) junto al acumulado real/calculado
     # de la automática (n_dayrain).
     puntos1 = []
     for e in extra_todas:
@@ -1073,7 +1073,7 @@ def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio,
         puntos1.append(p)
     if "n_pt101" not in df_conv.columns or not df_conv["n_pt101"].notna().any():
         mensajes.append(f"{cod_conv} no tiene {metadata['n_pt101']['etiqueta'].lower()} disponible.")
-    acumulado = vecindad.calcular_acumulado_diario_automatica(df_auto)
+    acumulado = emplazamiento.calcular_acumulado_diario_automatica(df_auto)
     if acumulado is not None:
         nombre = "Acumulado diario (auto)" + (_NOTA_CALCULADO if acumulado["calculado"] else "")
         puntos1.append({"nombre": nombre, "serie": acumulado["serie"], "color": _COLOR_EXTREMO_MAXIMA,
@@ -1086,9 +1086,9 @@ def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio,
         puntos1, titulo=f"{titulo_par} · Acumulado diario", yaxis_title="Precipitación (mm)",
     )
 
-    # Gráfico 2: ventaneo 07h/19h — cálculo propio de vecindad (autorizado
-    # explícitamente por el usuario, ver docs/SPEC-vecindad.md Ronda 2).
-    ventaneo = vecindad.calcular_ventaneo_automatica(df_auto)
+    # Gráfico 2: ventaneo 07h/19h — cálculo propio de emplazamiento compartido (autorizado
+    # explícitamente por el usuario, ver docs/SPEC-emplazamiento-compartido.md Ronda 2).
+    ventaneo = emplazamiento.calcular_ventaneo_automatica(df_auto)
     puntos2 = [e for e in extra_todas if e["tipo"] == "puntual"]
     columnas_puntual_presentes = {e["columna"] for e in puntos2}
     for col, meta in metadata.items():
@@ -1108,39 +1108,39 @@ def _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio,
     )
 
     # Diferencias (convencional − automática)
-    dif_diaria = vecindad.calcular_diferencias_precipitacion_diaria(df_auto, df_conv)
+    dif_diaria = emplazamiento.calcular_diferencias_precipitacion_diaria(df_auto, df_conv)
     lista_diff1 = []
     if dif_diaria is not None and not dif_diaria.empty:
         lista_diff1.append({"nombre": "Total diaria", "serie": dif_diaria,
                              "color": colores_por_columna.get("n_pt101", "#2ca02c")})
-    fig_diff1 = charts.panel_diferencias_vecindad(lista_diff1, titulo="Dif. acumulado diario (conv.−auto.)")
+    fig_diff1 = charts.panel_diferencias_emplazamiento(lista_diff1, titulo="Dif. acumulado diario (conv.−auto.)")
 
-    dif_ventaneo = vecindad.calcular_diferencias_precipitacion_ventaneo(df_auto, df_conv)
+    dif_ventaneo = emplazamiento.calcular_diferencias_precipitacion_ventaneo(df_auto, df_conv)
     lista_diff2 = [
         {"nombre": metadata[col]["etiqueta"], "serie": s, "color": colores_por_columna.get(col, "#2ca02c")}
         for col, s in dif_ventaneo.items() if not s.empty
     ]
-    fig_diff2 = charts.panel_diferencias_vecindad(lista_diff2, titulo="Dif. ventaneo 07h/19h (conv.−auto.)")
+    fig_diff2 = charts.panel_diferencias_emplazamiento(lista_diff2, titulo="Dif. ventaneo 07h/19h (conv.−auto.)")
 
     return fig1, fig2, fig_diff1, fig_diff2, " ".join(mensajes)
 
 
 @callback(
-    Output("g-vecindad-1", "figure"),
-    Output("g-vecindad-2", "figure"),
-    Output("g-vecindad-diff-1", "figure"),
-    Output("g-vecindad-diff-2", "figure"),
-    Output("div-vecindad-mensaje", "children"),
-    Input("dd-vecindad-par", "value"),
-    Input("rb-vecindad-variable", "value"),
-    Input("dt-periodo-vecindad", "start_date"),
-    Input("dt-periodo-vecindad", "end_date"),
-    Input("cl-cc-vecindad", "value"),
+    Output("g-emplazamiento-1", "figure"),
+    Output("g-emplazamiento-2", "figure"),
+    Output("g-emplazamiento-diff-1", "figure"),
+    Output("g-emplazamiento-diff-2", "figure"),
+    Output("div-emplazamiento-mensaje", "children"),
+    Input("dd-emplazamiento-par", "value"),
+    Input("rb-emplazamiento-variable", "value"),
+    Input("dt-periodo-emplazamiento", "start_date"),
+    Input("dt-periodo-emplazamiento", "end_date"),
+    Input("cl-cc-emplazamiento", "value"),
 )
-def actualizar_vecindad(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_incluidos):
+def actualizar_emplazamiento(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_incluidos):
     vacio = charts.overlay_multivar(pd.DataFrame(), None, None, {}, {})
-    vacio_diff = charts.panel_diferencias_vecindad([])
-    cod_auto, cod_conv = _dividir_par_vecindad(par_value)
+    vacio_diff = charts.panel_diferencias_emplazamiento([])
+    cod_auto, cod_conv = _dividir_par_emplazamiento(par_value)
     if not cod_auto:
         return vacio, vacio, vacio_diff, vacio_diff, "Elige un par arriba."
 
@@ -1150,7 +1150,7 @@ def actualizar_vecindad(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_
         return vacio, vacio, vacio_diff, vacio_diff, msg
 
     # CC propio del Analizador (cc_n_*) — capa independiente del flag de SIGMA,
-    # se aplica a ambas estaciones del par por igual (ver docs/SPEC-vecindad.md).
+    # se aplica a ambas estaciones del par por igual (ver docs/SPEC-emplazamiento-compartido.md).
     df = control_calidad.agregar_columnas_cc(df)
     df = data_loader.filtrar_por_flags(df, cc_incluidos, prefijo_flag="cc_")
 
@@ -1161,8 +1161,8 @@ def actualizar_vecindad(par_value, variable_fisica, fecha_inicio, fecha_fin, cc_
     nombres = _mapa_nombre_clasificacion(meta)
 
     if variable_fisica == "temperatura":
-        return _figuras_vecindad_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres)
-    return _figuras_vecindad_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres)
+        return _figuras_emplazamiento_temperatura(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres)
+    return _figuras_emplazamiento_precipitacion(cod_auto, cod_conv, df_auto, df_conv, vacio, vacio_diff, nombres)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

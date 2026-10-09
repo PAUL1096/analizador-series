@@ -7,7 +7,7 @@ data_ref/estaciones.db es un snapshot extraído una vez de sgo.db (ver
 docs/ESTADO_MIGRACION_Y_PENDIENTES.md §"Fase A") y nunca tuvo coordenadas ni
 altitud/región. Las reglas de control_calidad.py para estaciones convencionales
 (MT-DRD-003 §6.3.2, variación día a día por región+altitud) necesitan altitud/
-región; core/vecindad.py (docs/SPEC-vecindad.md) necesita latitud/longitud para
+región; core/emplazamiento.py (docs/SPEC-emplazamiento-compartido.md) necesita latitud/longitud para
 calcular pares co-ubicados. Este script agrega/refresca las cuatro columnas,
 re-ejecutable sin duplicar filas (UPDATE por código, no INSERT).
 

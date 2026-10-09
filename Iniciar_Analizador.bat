@@ -3,6 +3,11 @@ REM Lanzador del Analizador de Series (copia standalone, env dedicado analizador
 REM %~dp0 = carpeta de este .bat = raiz del proyecto -> cwd correcto para `python -m`.
 cd /d "%~dp0"
 
+REM Python del env conda "analizador_series"; si no esta en la ruta por defecto
+REM (otra PC u otra instalacion de conda), usa el python activo en el PATH.
+set "PY=%USERPROFILE%\.conda\envs\analizador_series\python.exe"
+if not exist "%PY%" set "PY=python"
+
 set PYTHONIOENCODING=utf-8
 
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4"') do (
@@ -18,8 +23,8 @@ echo   ANALIZADOR DE SERIES - Aseguramiento de Datos (copia de desarrollo)
 echo   SENAMHI - Subdireccion de Gestion de Redes de Observacion
 echo  =====================================================================
 echo.
-echo   Pestanas: Panorama (indice de triaje AF-*) / Comparar (consistencia
-echo   cruzada) / Estadistica (series derivadas y distribuciones).
+echo   Pestanas: Vista cruda / Estadistica / Comparar / Panorama /
+echo   Emplazamiento compartido (automatica vs convencional co-ubicada).
 echo.
 echo   Tu PC     : http://localhost:8054
 echo   Red local : http://%LOCAL_IP%:8054
@@ -34,7 +39,7 @@ echo   Presiona Ctrl+C para detener el servidor.
 echo  =====================================================================
 echo.
 
-"C:\Users\drd06\.conda\envs\analizador_series\python.exe" -m analizador_series.app
+"%PY%" -m analizador_series.app
 
 echo.
 echo  El servidor se detuvo. Presiona cualquier tecla para cerrar.

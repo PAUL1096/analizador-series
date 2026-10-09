@@ -7,9 +7,9 @@ DATA/logs/
 DATA/cache_dias_efectivos/
 DATA/cache_control_calidad/
 
-# ── Catálogo de estaciones (derivado de sgo.db; REVISAR antes de publicar:
-#    contiene metadata como entidad_responsable / propiedad_terreno) ────
-data_ref/estaciones.db
+# ── Catálogo de estaciones: data_ref/estaciones.db SÍ se versiona (sin
+#    entidad_responsable / propiedad_terreno, retiradas 2026-10-09) — sin él
+#    la app arranca vacía y el descargador no encuentra estaciones. ─────────
 
 # ── Entorno / cache ───────────────────────────────────────────────────
 __pycache__/

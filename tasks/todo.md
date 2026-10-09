@@ -1,6 +1,6 @@
-# Tasks: vecindad
+# Tasks: emplazamiento compartido
 
-Ver `tasks/plan.md` para el orden de fases y checkpoints. Spec: `docs/SPEC-vecindad.md`.
+Ver `tasks/plan.md` para el orden de fases y checkpoints. Spec: `docs/SPEC-emplazamiento-compartido.md`.
 
 ---
 
@@ -25,7 +25,7 @@ schema, poblada; el Excel de origen no trae ese dato de todos modos (ver
 - [x] Re-ejecutar el script no duplica filas (mismo UPDATE, no INSERT) —
       mismo criterio ya probado para altitud/región
 - [x] El docstring del módulo se corrige: ya no dice "No trae latitud/longitud
-      (eso es para core/vecindad.py, módulo aparte)" — ahora sí las trae
+      (eso es para core/emplazamiento.py, módulo aparte)" — ahora sí las trae
 
 **Verification:**
 - [x] Manual: confirmado con sqlite3 contra la DB real — 1076 estaciones con
@@ -48,7 +48,7 @@ schema, poblada; el Excel de origen no trae ese dato de todos modos (ver
 
 ---
 
-## Task 2: core/vecindad.py — pares co-ubicados + equivalencia de variables — ✅ HECHA
+## Task 2: core/emplazamiento.py — pares co-ubicados + equivalencia de variables — ✅ HECHA
 
 **Description:** Módulo nuevo, funciones puras (mismo estilo que
 `control_calidad.py`). `calcular_pares_colocados(umbral_m=100.0) -> list[dict]`:
@@ -76,7 +76,7 @@ en el diccionario.
       `n_pt101/102/103`
 
 **Verification:**
-- [x] `pytest tests/core/test_vecindad.py -v` — 14 tests en verde: haversine
+- [x] `pytest tests/core/test_emplazamiento.py -v` — 14 tests en verde: haversine
       contra distancias conocidas (mismo punto = 0m; 1° de longitud en el
       ecuador contra circunferencia/360 calculada aparte; desplazamiento
       norte-sur exacto por ser un meridiano un círculo máximo), filtro de
@@ -96,8 +96,8 @@ smoke test contra la DB real; los tests unitarios con coordenadas sintéticas no
 dependen de Task 1 y pueden escribirse en paralelo)
 
 **Files likely touched:**
-- `analizador_series/core/vecindad.py` (nuevo)
-- `tests/core/test_vecindad.py` (nuevo)
+- `analizador_series/core/emplazamiento.py` (nuevo)
+- `tests/core/test_emplazamiento.py` (nuevo)
 
 **Estimated scope:** Medium (2 archivos)
 
@@ -147,39 +147,39 @@ una línea que sugeriría continuidad falsa (motivo exacto del spec).
 
 ---
 
-## Task 4: ui/tab_vecindad.py — layout de la pestaña — ✅ HECHA
+## Task 4: ui/tab_emplazamiento.py — layout de la pestaña — ✅ HECHA
 
 **Description:** Layout nuevo, mismo estilo que `tab_comparar.py`: `dbc.Card`
 con selector de par (dropdown searchable, poblado con las ~204 opciones de
-`vecindad.calcular_pares_colocados()`, label legible tipo
+`emplazamiento.calcular_pares_colocados()`, label legible tipo
 `"{codigo_auto} ↔ {codigo_conv} · {distancia_m:.0f}m"`), selector de variable
 física (Temperatura/Precipitación, `dbc.RadioItems` como el de Comparar),
 selector de periodo PROPIO (`dcc.DatePickerRange` con id nuevo, ej.
-`dt-periodo-vecindad`, independiente de `dt-periodo` compartido — default
+`dt-periodo-emplazamiento`, independiente de `dt-periodo` compartido — default
 últimos 6 meses), checkbox de CC (mismas opciones BUENO/DUDOSO/MALO que
 `layout.py`), y el `dcc.Graph` de resultado. Registrar la pestaña nueva en
-`layout.tabs_principales()` (`dbc.Tab(label="Vecindad", tab_id="tab-vecindad")`)
+`layout.tabs_principales()` (`dbc.Tab(label="Emplazamiento compartido", tab_id="tab-emplazamiento")`)
 y en el router `renderizar_tab` de `callbacks.py:362` (rama nueva, sin
 depender de `codigos`/`dd-codigos` — el dropdown de pares se puebla siempre
 igual, no de lo que el usuario eligió arriba).
 
 **Acceptance criteria:**
-- [x] Pestaña "Vecindad" aparece en `tabs-principales` (después de "Vista
+- [x] Pestaña "Emplazamiento compartido" aparece en `tabs-principales` (después de "Vista
       cruda", antes de "Estadística")
 - [x] El layout renderiza sin excepción incluso si `dd-codigos` está vacío
-      (el router la construye desde `vecindad.calcular_pares_colocados()`
+      (el router la construye desde `emplazamiento.calcular_pares_colocados()`
       directo, sin leer `codigos`)
 - [x] El dropdown de pares es searchable (`dcc.Dropdown` con `searchable=True`
       explícito) y muestra las opciones ordenadas por distancia (194 sobre la
       DB real, ver Task 2)
-- [x] El date picker de Vecindad tiene su propio id (`dt-periodo-vecindad`),
+- [x] El date picker de Emplazamiento compartido tiene su propio id (`dt-periodo-emplazamiento`),
       no reutiliza `dt-periodo`
 
 **Verification:**
-- [x] `pytest tests/ui/test_tab_vecindad.py -v` — 5 tests: formateo de
+- [x] `pytest tests/ui/test_tab_emplazamiento.py -v` — 5 tests: formateo de
       `opciones_pares` (label/value, redondeo de distancia, lista vacía),
       layout sin excepción vacío y poblado
-- [x] Smoke test directo (sin navegador, invocando `renderizar_tab("tab-vecindad", None)`
+- [x] Smoke test directo (sin navegador, invocando `renderizar_tab("tab-emplazamiento", None)`
       con la app Dash real): devuelve un `html.Div` construido con los 194
       pares reales de `estaciones.db`, sin excepción
 - [x] `pytest tests/` completo en verde (193 tests: 188 previos + 5 nuevos)
@@ -189,7 +189,7 @@ opciones reales), Task 3 (el gráfico de esta pestaña depende de la firma
 extendida de `overlay_multivar`, aunque el layout en sí no la invoca)
 
 **Files likely touched:**
-- `analizador_series/ui/tab_vecindad.py` (nuevo)
+- `analizador_series/ui/tab_emplazamiento.py` (nuevo)
 - `analizador_series/ui/layout.py` (registrar tab)
 - `analizador_series/ui/callbacks.py` (rama nueva en `renderizar_tab`)
 
@@ -205,7 +205,7 @@ extendida de `overlay_multivar`, aunque el layout en sí no la invoca)
 
 ---
 
-## Task 5: Callbacks de Vecindad — cargar par, graficar, filtro de periodo — ✅ HECHA
+## Task 5: Callbacks de Emplazamiento compartido — cargar par, graficar, filtro de periodo — ✅ HECHA
 
 **Description:** Callback(s) nuevos en `callbacks.py` que, dado el par elegido
 + variable física + periodo, cargan ambas estaciones
@@ -225,9 +225,9 @@ el compartido.
       (acumulados tal cual vienen del CSV — el spec lo prohíbe explícitamente;
       no se implementó ninguna lógica de ventaneo, `armar_extra_series_convencional`
       solo pasa las columnas tal cual)
-- [x] Cambiar el periodo de Vecindad recorta ambas series, sin afectar
+- [x] Cambiar el periodo de Emplazamiento compartido recorta ambas series, sin afectar
       `dt-periodo` compartido ni las demás pestañas (id propio
-      `dt-periodo-vecindad`, callback `actualizar_periodo_vecindad` separado
+      `dt-periodo-emplazamiento`, callback `actualizar_periodo_emplazamiento` separado
       del compartido `actualizar_periodo_compartido`)
 - [x] Si la convencional del par no tiene CSV descargado o le faltan columnas
       de la equivalencia, el gráfico muestra solo la automática + un mensaje
@@ -245,7 +245,7 @@ el compartido.
       pudo hacer el smoke test en navegador con un par 100% real con ambos
       CSVs sanos, porque no existe ninguno así en el repo en este momento.
 - [x] En su lugar: **test de integración con CSVs sintéticos reales**
-      (`tests/ui/test_callbacks_vecindad.py`, monkeypatch de
+      (`tests/ui/test_callbacks_emplazamiento.py`, monkeypatch de
       `data_loader.DIR_AUTO`/`DIR_CONV` a un `tmp_path` con archivos
       `AUTOTEST_*.csv`/`CONVTEST_*.csv` de verdad, no mocks) — confirma el
       camino feliz completo: línea de `n_airtemp` + puntos `n_tm102`/`n_tm103`
@@ -253,7 +253,7 @@ el compartido.
       mismo par (que no tiene columnas `n_pt10x`) dispara el mensaje de "sin
       columnas disponibles" en vez de una excepción
 - [x] Rama "sin CSV en absoluto" verificada con datos reales de la DB:
-      `actualizar_vecindad('104114|999999', ...)` y con un código real sin
+      `actualizar_emplazamiento('104114|999999', ...)` y con un código real sin
       CSV descargado (`107140`) — ambos casos devuelven mensaje claro, sin
       excepción
 - [x] `pytest tests/` completo en verde (201 tests: 197 previos + 4 nuevos)
@@ -267,7 +267,7 @@ el compartido.
 
 ---
 
-## Task 6: Checkbox de CC en Vecindad — ✅ HECHA
+## Task 6: Checkbox de CC en Emplazamiento compartido — ✅ HECHA
 
 **Description:** Reusar `control_calidad.resultado_control_calidad_estacion`
 para AMBAS estaciones del par (mismo mecanismo ya integrado en Vista
@@ -309,7 +309,7 @@ checkbox aplica sin lógica condicional adicional por categoría.
 
 ## Nota post-completo: bug real del downloader de convencionales, encontrado y arreglado (2026-09-30)
 
-Al intentar probar Vecindad con datos reales de convencional, se encontró la
+Al intentar probar Emplazamiento compartido con datos reales de convencional, se encontró la
 causa real del bloqueo de datos documentado arriba (no era el mismo bug de
 104097 — era un bug DISTINTO y más general en `descarga/descargar_datos_meteo_sigma.py`):
 
@@ -317,7 +317,7 @@ causa real del bloqueo de datos documentado arriba (no era el mismo bug de
 la familia de datos — `d_fecha_reg`/`v_hora_reg` para automáticas e
 hidrológicas, pero `FECHA` (mayúsculas, sin ningún campo de hora) para
 meteorológicas convencionales diarias (temperatura `n_tm*`/precipitación
-`n_pt*` — justo las que necesita vecindad). `_construir_csv` solo buscaba
+`n_pt*` — justo las que necesita emplazamiento compartido). `_construir_csv` solo buscaba
 `d_fecha_reg`; para la familia `FECHA` esa columna quedaba vacía en todas las
 filas, y el deduplicado por `(fecha, hora)` colapsaba TODO el período
 descargado a una sola fila corrupta — reproducido real contra la API con
@@ -327,14 +327,14 @@ descargado a una sola fila corrupta — reproducido real contra la API con
 — fallback `d_fecha_reg` → `FECHA`, normaliza a solo fecha (`[:10]`, cubre
 también el caso ISO con hora/timezone embebidos de las hidrológicas), y
 default de hora a `"00:00"` si no hay `v_hora_reg` (mismo patrón ya usado por
-las convencionales reales documentado en `docs/SPEC-vecindad.md`). 4 tests
+las convencionales reales documentado en `docs/SPEC-emplazamiento-compartido.md`). 4 tests
 nuevos en `tests/descarga/test_descargar_datos_meteo_sigma.py` (Prove-It
 pattern: reproducidos con datos sintéticos calcados de la respuesta real de
 la API antes del fix, confirmados en verde después).
 
 **Verificado con datos reales tras el fix:** 106077 y 100043 re-descargados
 (91 y 29 días reales respectivamente, antes 1 fila corrupta cada uno) y
-graficados en Vecindad end-to-end: par `4728B11C|100043` (temperatura, 5
+graficados en Emplazamiento compartido end-to-end: par `4728B11C|100043` (temperatura, 5
 series convencionales) y `4727F484|106077` (precipitación, 3 series), ambos
 sin excepción y sin mensaje de error.
 
@@ -352,19 +352,19 @@ variables de más — pero no era necesario para destrabar esto.
 
 ## Checkpoint: Completo — ✅ CUMPLIDO
 - [x] `pytest tests/` completo en verde (202 tests: 167 de control-calidad +
-      35 nuevos de vecindad)
+      35 nuevos de emplazamiento compartido)
 - [x] Smoke test en navegador — **no se hizo** (ver nota abajo); se verificó
       en su lugar por invocación directa de los callbacks reales (misma
       profundidad que Tasks 9/10 de control-calidad) y por un test de
       integración con CSVs sintéticos reales que ejercita el camino
       completo (línea + puntos + mensaje), sin errores
-- [x] Success Criteria 1-7 de `docs/SPEC-vecindad.md` verificados por
+- [x] Success Criteria 1-7 de `docs/SPEC-emplazamiento-compartido.md` verificados por
       inspección:
   - [x] `estaciones.db` con `latitud`/`longitud` poblados (Task 1 — 1076
         estaciones reales)
-  - [x] `core/vecindad.py` con `calcular_pares_colocados()` + equivalencia
+  - [x] `core/emplazamiento.py` con `calcular_pares_colocados()` + equivalencia
         (Task 2 — 194 pares reales)
-  - [x] Pestaña "Vecindad" independiente del selector compartido, dropdown +
+  - [x] Pestaña "Emplazamiento compartido" independiente del selector compartido, dropdown +
         periodo propios (Task 4)
   - [x] Gráfico con línea continua + puntos distinguibles (Task 3, 5)
   - [x] Checkbox de CC filtra ambas series (Task 6)
@@ -379,7 +379,7 @@ momento:** no se pudo hacer un smoke test en navegador con un par 100% real
 (ambas estaciones con CSV descargado y sano) porque el único CSV convencional
 que existe en el repo (104097) dispara un bug pre-existente y ya conocido del
 loader (`data_loader._leer_csv_estacion`, Fecha/Hora inválidos) — no es bug de
-esta tarea, está fuera de alcance del spec de vecindad arreglar el loader
+esta tarea, está fuera de alcance del spec de emplazamiento compartido arreglar el loader
 compartido. Se cubrió en su lugar con: (a) un test de integración con CSVs
 sintéticos reales que sí prueba el renderizado completo (línea + puntos +
 colores + modos), (b) verificación por backend con estaciones reales
@@ -402,7 +402,7 @@ reales que la Ronda 1 no había cubierto:
    son horas **sinópticas puntuales** (07h/13h/19h) — confirmado contra el
    catálogo oficial de SIGMA (Análisis → DataMonitor). Fix: cada punto se
    desplaza a su hora real (puntual) o queda al mediodía con símbolo diamante
-   (diaria) — ver `docs/SPEC-vecindad.md`, sección "Revisión de alcance".
+   (diaria) — ver `docs/SPEC-emplazamiento-compartido.md`, sección "Revisión de alcance".
 2. **"Quizá más abajo podamos colocar las diferencias entre ambos valores"**
    (mostró como referencia un gráfico estilo PLIA) — cruza el límite
    explícito "ninguna estadística de comparación" del spec original.
@@ -413,7 +413,7 @@ reales que la Ronda 1 no había cubierto:
    "diaria" siguen sin diferencia, ese límite no se tocó.
 
 **Implementado:**
-- `core/vecindad.py`: `EQUIVALENCIA_VARIABLES["..."]["convencional"]` pasó de
+- `core/emplazamiento.py`: `EQUIVALENCIA_VARIABLES["..."]["convencional"]` pasó de
   lista plana a diccionario con metadata (`etiqueta`, `tipo` "diaria"/
   "puntual", `hora` si aplica) — catálogo oficial de SIGMA citado en el
   comentario. `armar_extra_series_convencional` desplaza el índice según
@@ -422,11 +422,11 @@ reales que la Ronda 1 no había cubierto:
   de diferencias. `calcular_diferencias_puntuales` nuevo — diferencia solo
   para "puntual", vía reindex exacto contra la automática.
 - `ui/charts.py`: `overlay_multivar` gana `"symbol"` en `extra_series`
-  (default "circle", sin romper Comparar). `panel_diferencias_vecindad`
+  (default "circle", sin romper Comparar). `panel_diferencias_emplazamiento`
   nuevo — barras por columna puntual, línea de referencia en 0.
-- `ui/tab_vecindad.py`: segundo `dcc.Graph` (`g-vecindad-diferencias`) debajo
+- `ui/tab_emplazamiento.py`: segundo `dcc.Graph` (`g-emplazamiento-diferencias`) debajo
   del principal.
-- `ui/callbacks.py`: `actualizar_vecindad` gana el `Output` del segundo
+- `ui/callbacks.py`: `actualizar_emplazamiento` gana el `Output` del segundo
   gráfico y calcula las diferencias reusando el color de `extra_series`.
 - 12 tests nuevos (desplazamiento horario, símbolo, diferencias solo
   puntuales, integración end-to-end). `pytest tests/` completo: 219/219 en
@@ -436,7 +436,7 @@ reales que la Ronda 1 no había cubierto:
 - Servidor reiniciado limpio para que el usuario vea el resultado en
   `localhost:8054`.
 
-**Hallazgo aparte durante esta ronda, no de vecindad:** dos bugs reales de
+**Hallazgo aparte durante esta ronda, no de emplazamiento compartido:** dos bugs reales de
 descarga encontrados y arreglados en `descarga/descargar_datos_meteo_sigma.py`
 (campo de fecha `FECHA` vs `d_fecha_reg` — ver nota de Ronda 1) y un
 `PermissionError` real por tener el CSV de destino abierto en Excel al
@@ -457,7 +457,7 @@ con dos hallazgos reales verificados con datos reales antes de tocar código:
 1. **La automática tiene sus propios extremos/acumulados diarios reales**
    (`n_maxat`/`n_minat`/`n_dayrain`) — confirmado con 482/486 registros reales
    en 4728B11C, reportados casi siempre a las 07:00. No hacía falta que
-   vecindad calculara nada para el caso normal; solo se agregó respaldo
+   emplazamiento compartido calculara nada para el caso normal; solo se agregó respaldo
    calculado (marcado con nota explícita) para cuando faltan.
 2. **Desfase de fecha real entre `n_pt101` (convencional) y `n_dayrain`
    (automática)**, verificado con 21/21 casos no triviales en 106077:
@@ -478,7 +478,7 @@ con dos hallazgos reales verificados con datos reales antes de tocar código:
 | Precipitación | Acumulado diario (conv. `n_pt101` realineado +1 día + auto. `n_dayrain`, real o calculado con nota) | Ventaneo 07h/19h (conv. `n_pt102/103` + auto. suma nocturna/diurna, siempre cálculo propio) | Dif. acumulado diario | Dif. ventaneo |
 
 **Implementado:**
-- `core/vecindad.py`: `EQUIVALENCIA_VARIABLES` gana `automatica_extremos_diarios`
+- `core/emplazamiento.py`: `EQUIVALENCIA_VARIABLES` gana `automatica_extremos_diarios`
   (temperatura) y `automatica_diaria` + `desfase_dias_cierre` (precipitación).
   Funciones nuevas: `calcular_extremos_diarios_automatica`,
   `calcular_diferencias_diarias_temperatura`, `calcular_acumulado_diario_automatica`,
@@ -489,13 +489,13 @@ con dos hallazgos reales verificados con datos reales antes de tocar código:
   gana clave `"tipo"` (para que el callback separe puntual/diaria por gráfico).
 - `ui/charts.py`: `serie_puntos_diarios` nuevo (comparar N series diarias sin
   curva continua de base, a diferencia de `overlay_multivar`).
-- `ui/tab_vecindad.py`: 4 `dcc.Graph` genéricos (`g-vecindad-1/2/diff-1/diff-2`)
-  en vez de 2 — el callback decide contenido según `rb-vecindad-variable`.
-- `ui/callbacks.py`: `actualizar_vecindad` reestructurado con 2 funciones de
-  armado por variable física (`_figuras_vecindad_temperatura`,
-  `_figuras_vecindad_precipitacion`), 5 Outputs (4 figuras + mensaje).
-- 26 tests nuevos en `core/vecindad.py` (41 en total ese archivo) + reescritura
-  completa de `tests/ui/test_callbacks_vecindad.py` (12 tests, estructura
+- `ui/tab_emplazamiento.py`: 4 `dcc.Graph` genéricos (`g-emplazamiento-1/2/diff-1/diff-2`)
+  en vez de 2 — el callback decide contenido según `rb-emplazamiento-variable`.
+- `ui/callbacks.py`: `actualizar_emplazamiento` reestructurado con 2 funciones de
+  armado por variable física (`_figuras_emplazamiento_temperatura`,
+  `_figuras_emplazamiento_precipitacion`), 5 Outputs (4 figuras + mensaje).
+- 26 tests nuevos en `core/emplazamiento.py` (41 en total ese archivo) + reescritura
+  completa de `tests/ui/test_callbacks_emplazamiento.py` (12 tests, estructura
   nueva de 4 gráficos) + 4 tests nuevos de `serie_puntos_diarios`. `pytest
   tests/` completo: 245/245 en verde.
 - Verificado con datos reales de punta a punta en ambas variables físicas
@@ -545,12 +545,12 @@ realmente pidió no existía en los datos disponibles.
 ## Disclaimer visible en la UI (2026-09-30)
 
 A pedido del usuario, se agregó un disclaimer colapsable ("ℹ️ Qué significa
-cada valor calculado") en la tarjeta de selectores de `tab_vecindad.py`, con
+cada valor calculado") en la tarjeta de selectores de `tab_emplazamiento.py`, con
 las ecuaciones exactas de cada valor real/calculado (máx/mín diaria de
 temperatura, acumulado diario y ventaneo 07h/19h de precipitación, y la nota
 del desfase de `n_pt101`) — mismo contenido ya documentado en
-`docs/SPEC-vecindad.md`, ahora también accesible sin salir de la app.
-Callback `toggle_disclaimer_vecindad` (patrón estándar botón+`dbc.Collapse`).
+`docs/SPEC-emplazamiento-compartido.md`, ahora también accesible sin salir de la app.
+Callback `toggle_disclaimer_emplazamiento` (patrón estándar botón+`dbc.Collapse`).
 `pytest tests/`: 246/246 en verde (sin tests nuevos — es presentacional, ya
 cubierto por el test de layout existente que confirma que renderiza sin
 excepción).
@@ -566,7 +566,7 @@ cambiando según la variable física, no como botón colapsable aparte.
 
 **Fix:**
 - `ui/charts.py`: título con `font.size` reducido + `margin.t` aumentado
-  (85/75/85 según el gráfico) en las 3 funciones de vecindad — separa título
+  (85/75/85 según el gráfico) en las 3 funciones de emplazamiento compartido — separa título
   de leyenda sin tocar el comportamiento de Comparar (que no pasa título
   largo). Verificado visualmente en navegador (chrome-devtools MCP),
   screenshot antes/después.
@@ -574,14 +574,14 @@ cambiando según la variable física, no como botón colapsable aparte.
   de la versión larga original); mensajes nuevos cuando falta cualquiera de
   los dos lados (convencional sin columna/sin dato real, automática sin
   fuente real ni calculada) — antes esos casos se omitían sin aviso.
-- `core/vecindad.py`: `armar_extra_series_convencional` ahora excluye
+- `core/emplazamiento.py`: `armar_extra_series_convencional` ahora excluye
   columnas que EXISTEN pero están enteramente vacías en el periodo (evita
   trazas fantasma en la leyenda sin puntos visibles) — 1 test de regresión
   nuevo.
-- `ui/tab_vecindad.py` + `ui/callbacks.py`: disclaimer movido de
-  botón-colapsable a un `html.Div` fijo debajo de `dt-periodo-vecindad`,
-  con contenido corto que cambia según `rb-vecindad-variable` (callback
-  `actualizar_disclaimer_vecindad`), en vez de un solo bloque largo con
+- `ui/tab_emplazamiento.py` + `ui/callbacks.py`: disclaimer movido de
+  botón-colapsable a un `html.Div` fijo debajo de `dt-periodo-emplazamiento`,
+  con contenido corto que cambia según `rb-emplazamiento-variable` (callback
+  `actualizar_disclaimer_emplazamiento`), en vez de un solo bloque largo con
   ambas magnitudes mezcladas.
 - `pytest tests/`: 247/247 en verde. Verificado visualmente de punta a punta
   en el navegador real con el par 114140↔114066 (el mismo de las capturas
@@ -607,23 +607,23 @@ Dos detalles reales señalados por el usuario con capturas, tras el pulido anter
    define el font-size de `<code>` en `rem` (relativo a la raíz del
    documento), no en `em` (relativo al padre), así que no se achicaba junto
    con la clase `.small` que envuelve el resto del texto. Fix: se creó
-   `analizador_series/assets/vecindad.css` (carpeta nueva — la que ya
+   `analizador_series/assets/emplazamiento.css` (carpeta nueva — la que ya
    existía en `ui/assets/` estaba vacía y **no es la que Dash sirve
    realmente**; confirmado con `app.config["assets_folder"]`, que apunta a
    `analizador_series/assets`, no `ui/assets`) con la regla
-   `.vecindad-disclaimer code { font-size: inherit; }`. Verificado en el
+   `.emplazamiento-disclaimer code { font-size: inherit; }`. Verificado en el
    navegador real: antes de la regla, código y párrafo no coincidían;
    después, ambos miden exactamente 14px.
 
 `pytest tests/`: 247/247 en verde (cambio puramente de CSS/layout, sin
 lógica). Verificado visualmente de punta a punta en navegador real.
 
-## Resumen final — módulo vecindad completo
+## Resumen final — módulo emplazamiento compartido completo
 
-6 tareas, 3 fases, 202 tests (de 167 al empezar, +35 de vecindad). Alcance
+6 tareas, 3 fases, 202 tests (de 167 al empezar, +35 de emplazamiento compartido). Alcance
 final vs. el spec original: igual, sin extensiones ni recortes — los dos
 hallazgos de la fase de planeamiento (`estado_operatividad` ya cubierto por
-la columna `activa` existente; `core/vecindad.py` con consulta sqlite propia
+la columna `activa` existente; `core/emplazamiento.py` con consulta sqlite propia
 en vez de reusar `data_loader.metadata_estaciones`) ya estaban anticipados en
 `tasks/plan.md` antes de empezar a programar. Pendiente real, no de código:
 mismo tipo de bloqueo de datos que control-calidad — no hay ningún CSV
